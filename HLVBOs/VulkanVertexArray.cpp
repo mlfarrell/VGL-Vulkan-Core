@@ -33,7 +33,6 @@ namespace vgl
       attributeDescriptions[location].offset = offset;
       numAttributes = max(numAttributes, location+1);
 
-      //WARNING:  if buffers get destroyed/recreated, we are fucked, use vulkanbuffer group pointer instead!
       buffers[binding] = bufferGroup;
       bufferIndices[binding] = bufferIndex;
     }
