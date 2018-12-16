@@ -1,0 +1,15 @@
+example/include/*.h
+example/include/*.hpp*
+example/include/shaderc/shaderc.h
+example/include/shaderc/shaderc.hpp
+example/lib/vulkan-1.lib
+example/lib/SDL2main.lib
+example/lib/SDL2.lib
+example/windows/.vs/
+example/windows/VulkanTesting/SDL2.dll
+example/windows/VulkanTesting/vkPipelineCache.bin
+example/windows/VulkanTesting/x64/
+src/LICENSE_HEADER
+example/windows/x64/
+example/___VulkanTestingFBO.cpp
+src/update_and_license.sh

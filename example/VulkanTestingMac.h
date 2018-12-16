@@ -1,0 +1,2 @@
+
+void addMetalLayer(void *nsWindow);
