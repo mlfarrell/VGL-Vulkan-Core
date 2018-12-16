@@ -10,7 +10,7 @@ a 3D modeling tool.
 
 ## Dependencies
 
-You will need to have [SDL2] (https://www.libsdl.org/download-2.0.php), [stb_image] (https://github.com/nothings/stb/blob/master/stb_image.h), [linearalg](https://github.com/sgorsten/linalg) and the [Vulkan SDK] (https://www.lunarg.com/vulkan-sdk/).  
+You will need to have [SDL2](https://www.libsdl.org/download-2.0.php), [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h), [linearalg](https://github.com/sgorsten/linalg) and the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).  
 At the time of this release, the vesions I'm using are SDL2 2.0.9, stb_image 2.19, linearalg 2.1, and LunarG 1.1.73.0
 
 Inside LunarG contains shaderc, which must be built as a shared DLL on windows.  Because that is a giant pain in the ass, I've included the interface lib and DLL for shaderc in this project.
