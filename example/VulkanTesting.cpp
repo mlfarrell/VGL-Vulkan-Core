@@ -363,11 +363,11 @@ void VGLPPVkDemo::initPipelineState()
 
 void VGLPPVkDemo::reshape()
 {
+  //this hasn't been worked on yet (and will probably break)
   vkInstance->getSwapChain()->recreate();
 
   //this destroys the render pass, which we should keep between recreation
   vkSwapchainFramebuffers = make_shared<VulkanFrameBuffer>(vkInstance->getSwapChain());
-  throw "this is fucked";
 
   auto swapChainExtent = vkInstance->getSwapChain()->getExtent();
   VkViewport viewport = {};
