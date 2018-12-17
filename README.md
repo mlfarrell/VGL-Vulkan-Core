@@ -8,6 +8,8 @@ or similair open source software.  Nonetheless, the motivations for providing th
 somewhat complicated tasks using Vulkan and how to provide general rendering APIs to service a non-game application such as 
 a 3D modeling tool.
 
+To get an idea of how this core can be used to replace an OpenGL 3.x engine, see the example source code (ExampleRenderer.cpp & Example.cpp)
+
 ## Dependencies
 
 You will need to have [SDL2](https://www.libsdl.org/download-2.0.php), [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h), [linearalg](https://github.com/sgorsten/linalg) and the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).  

@@ -1,5 +1,5 @@
 /*************************************************************************************
-Basic example program demonstrating how to use a few of the Vulkan Core's features
+Basic example program demonstrating how to directly use a few of the Vulkan Core's features
 Forgive me, I haven't had a ton of time to clean up in here
 Eventually, a better demo of the core's capability will replace this.
 *************************************************************************************/
@@ -8,7 +8,7 @@ Eventually, a better demo of the core's capability will replace this.
 #include <linalg.h>
 #include "VecTypes.h"
 #include "MatTypes.h"
-#include "VulkanTesting.h"
+#include "LowLevelExample.h"
 #include "VulkanAsyncResourceHandle.h"
 #include <memory>
 #include <iostream>

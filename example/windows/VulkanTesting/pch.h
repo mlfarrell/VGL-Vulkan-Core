@@ -24,3 +24,8 @@
 #define DebugBuild() 0
 #endif
 #endif
+
+#ifdef _MSC_VER
+#pragma warning(disable: 4005)
+#pragma warning(disable: 4305)
+#endif

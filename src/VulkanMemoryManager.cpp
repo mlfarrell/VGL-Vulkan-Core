@@ -112,7 +112,7 @@ namespace vgl
 #ifdef DEBUG
         //this shouldn't be possible
         if(suballoc && requiredAlignment > 0 && suballoc.offset > 0)
-          throw vgl_runtime_error("VulkanMemoryManager::allocate alignment ate shit");
+          throw vgl_runtime_error("VulkanMemoryManager::allocate alignment failed");
 
         if(!suballoc)
           cerr << "allocation failed" << endl;
@@ -158,7 +158,7 @@ namespace vgl
 #ifdef DEBUG
       //this shouldn't be possible
       if(requiredAlignment > 0 && suballoc.offset > 0)
-        throw vgl_runtime_error("VulkanMemoryManager::allocate alignment ate shit");
+        throw vgl_runtime_error("VulkanMemoryManager::allocate alignment failed");
 #endif
 
       return suballoc;
