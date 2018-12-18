@@ -22,8 +22,32 @@ Inside LunarG contains shaderc, which must be built as a shared DLL on windows. 
 As of now, there's no separate .lib project for this core (yet).  I usually embed its source files inside the larger engine that builds it.  
 An example program that shows basic core usage is contained within the example folder.
 
+### Windows
+
 Once you have all your dependencies, place all the headers from (vulkansdk/include/vulkan, shaderc, linearalg, and SDL2) into example/include and the corresponding libs inside example/lib
 Then, open the Visual Studio 2017 solution and build the project.
+
+### Mac
+
+Once you have all your dependencies, place all the headers from (vulkansdk/include/vulkan, shaderc, linearalg, and SDL2) into example/include and the following frameworks/libs inside example/mac
+
+- MoltenVK.framework
+- SDL2.framework
+- libMoltenVK.dylib
+- libshaderc_combined.a
+- libvulkan.1.dylib
+
+Then, open the Example.xcode Project and build.
+
+## How Can I Help?
+
+The project as it stands, could use a much better solution for parsing SPIRV assembly and running old-school GLSL (version 150) code on the core.  Both solutions involve a regex parsing solution that I'm not too crazy about.  The SPIRV assembly regex parser needed to perform shader introspection is decent enough, but I'm sure a better solution exists.  
+
+Related to this:  The core currently lacks the ability to compile GLSL 150 and auto-conver to vulkan-enabled GLSL 450.  Currently my higher-level engine implements this (on top of this core) using tons of regex which is a giant hack.  I'd like to have a more graceful solution to this.
+
+The memory manager currently does not expose or support non-coherent memory.  
+
+Rendering performant OpenGL-style thick lines WITHOUT using a geometry shader would be a nice addition.
 
 ## License
 
