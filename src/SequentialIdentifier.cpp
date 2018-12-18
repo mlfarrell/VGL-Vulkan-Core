@@ -14,8 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ***************************************************************************/
 
-#pragma once
-
 #include "pch.h"
 #include "SequentialIdentifier.h"
 
@@ -23,6 +21,6 @@ namespace vgl
 {
   namespace core
   {
-    std::atomic_uint32_t SequentialIdentifier::globalId = 0;
+    std::atomic_uint32_t SequentialIdentifier::globalId(0);
   }
 }

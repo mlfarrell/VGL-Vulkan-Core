@@ -13,3 +13,10 @@ src/LICENSE_HEADER
 example/windows/x64/
 example/___VulkanTestingFBO.cpp
 src/update_and_license.sh
+example/mac/libMoltenVK.dylib
+example/mac/libshaderc_combined.a
+example/mac/libvulkan.1.dylib
+example/mac/Example.xcodeproj/project.xcworkspace
+example/mac/Example.xcodeproj/xcuserdata
+example/mac/MoltenVK.framework
+example/mac/SDL2.framework

@@ -305,7 +305,7 @@ void Example::doRender()
   {
     float offset = (float)(i-1)*4.0f;
     auto modelTranslation = translation_matrix(vec<float, 3>{ offset, 0, 0 });
-    auto modelBaseTransform = mul(scaling_matrix(vec<float, 3>({ 0.1f, 0.1f, 0.1f })), 
+    auto modelBaseTransform = mul(scaling_matrix(vec<float, 3>{ 0.1f, 0.1f, 0.1f }), 
       rotation_matrix(rotation_quat({ 1.0f, 0.0f, 0.0f }, (float)M_PI/2)));
     auto modelAnimTransform = rotation_matrix(rotation_quat({ 0.0f, 1.0f, 0.0f }, (float)M_PI+t+offset));
 
