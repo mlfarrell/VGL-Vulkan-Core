@@ -103,7 +103,7 @@
       <WarningLevel>Level3</WarningLevel>
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>VGL_VULKAN_CORE_STANDALONE;_CRT_SECURE_NO_WARNINGS;VK_USE_PLATFORM_WIN32_KHR;DEBUG;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VGL_VULKAN_CORE_STANDALONE;NOMINMAX;_CRT_SECURE_NO_WARNINGS;VK_USE_PLATFORM_WIN32_KHR;DEBUG;_DEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;$(ProjectDir)..\..\..\src\os\win;$(ProjectDir)..\..\..\src\os;$(ProjectDir)..\..\..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4311;4302</DisableSpecificWarnings>
@@ -143,7 +143,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>VGL_VULKAN_CORE_STANDALONE;_CRT_SECURE_NO_WARNINGS;VK_USE_PLATFORM_WIN32_KHR;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>VGL_VULKAN_CORE_STANDALONE;NOMINMAX;_CRT_SECURE_NO_WARNINGS;VK_USE_PLATFORM_WIN32_KHR;NDEBUG;_WINDOWS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>$(ProjectDir)..\..\include;$(ProjectDir)..\..\..\src\os\win;$(ProjectDir)..\..\..\src\os;$(ProjectDir)..\..\..\src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DisableSpecificWarnings>4311;4302</DisableSpecificWarnings>
