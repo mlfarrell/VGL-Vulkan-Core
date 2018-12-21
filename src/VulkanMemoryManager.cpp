@@ -257,7 +257,7 @@ namespace vgl
         {
           for(auto &alloc : allocations[i])
           {
-            if(alloc->suballocationCount == 0 && freeMode == FM_SYNCHRONOUS)
+            if(alloc->suballocationCount == 0)
             {
               vkFreeMemory(device, alloc->memory, nullptr);
               alloc->memory = nullptr;
@@ -493,6 +493,8 @@ namespace vgl
 
     void VulkanMemoryManager::cleanupAllocations()
     {
+      /*** As it currently stands, this is the most expensive operation you can call within the entire memory manager ***/
+
       for(uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++)
       {
         auto &v = allocations[i];
@@ -507,9 +509,56 @@ namespace vgl
       auto newAllocationsPool = new Allocation[maxAllocations];
       for(int i = 0; i < ai; i++)
       {
-        if(allocationsPool[ai].memory)
+        if(allocationsPool[i].memory)
         {
-          newAllocationsPool[newAi++] = allocationsPool[ai];
+          bool found = false;
+
+          newAllocationsPool[newAi] = allocationsPool[i];
+
+          //need to fix references within free regions now
+          //Note:  this operation could be quite slow for certain situations O(n^2)
+          newAllocationsPool[newAi].freeRegions.clear();
+          for(auto &fr : allocationsPool[i].freeRegions)
+          {
+            auto &regions = newAllocationsPool[newAi].regions;
+
+            found = false;
+            for(auto &srIt = regions.begin(); srIt != regions.end(); srIt++) 
+            {
+              if(srIt->id == fr.first->id)
+              {
+                auto sr = &(*srIt);
+
+                newAllocationsPool[newAi].freeRegions[sr] = srIt;
+                found = true;
+                break;
+              }
+            }
+
+            if(DebugBuild() && !found)
+              throw vgl_runtime_error("Internal error in VulkanMemoryManager::cleanupAllocations()");
+          }
+
+          //and now we need to find and replace all the pointers in the allocations arrays
+          //unfortunately, we don't store memory type index inside allocations struct
+          found = false;
+          for(uint32_t mi = 0; mi < VK_MAX_MEMORY_TYPES; mi++)
+          {
+            for(auto &allocPtr : allocations[mi])
+            {
+              if(allocPtr->id == newAllocationsPool[newAi].id)
+              {
+                allocPtr = &newAllocationsPool[newAi];
+                found = true;
+                break;
+              }
+            }            
+          }
+
+          if(DebugBuild() && !found)
+            throw vgl_runtime_error("Internal error in VulkanMemoryManager::cleanupAllocations()");
+
+          newAi++;
         }
       }
 
