@@ -73,14 +73,14 @@ namespace vgl
         return buffers[bufferIndex].stagingBuffer;
     }
 
-    void VulkanBufferGroup::setDeviceLocal(bool local)
+    void VulkanBufferGroup::setPreferredDeviceLocal(bool local)
     {
       stageToDevice = local;
     }
 
     bool VulkanBufferGroup::isDeviceLocal()
     {
-      return stageToDevice;
+      return (stageToDevice || stagingBufferDeviceLocal);
     }
 
     void VulkanBufferGroup::setDedicatedAllocation(bool dedicated, size_t allocationSize)
@@ -118,6 +118,7 @@ namespace vgl
 
     void VulkanBufferGroup::data(int bufferIndex, const void *data, size_t numBytes, VkCommandBuffer transferCommandBuffer, bool frame)
     {
+      auto memoryManager = instance->getMemoryManager();
       bool emptyBuffer = false;
 
       //if we try to create a zero-sized buffer, vulkan will choke
@@ -155,6 +156,8 @@ namespace vgl
 
       if(!buffers[bufferIndex].stagingBuffer)
       {
+        auto stagingBufferMemoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = numBytes;
         if(!stageToDevice)
@@ -170,19 +173,35 @@ namespace vgl
 
         if(dedicatedAllocation && !dedicatedHostAllocationId)
         {
-          auto dedicatedAlloc = instance->getMemoryManager()->allocateDedicated(memRequirements.memoryTypeBits, 
-            VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, (VkDeviceSize)dedicatedAllocationSize);
-          dedicatedHostAllocationId = dedicatedAlloc.second;
+          //this is likely for something performance critical such as dynamic UBOs, so lets aim for best possible memory type
+          //in this case, we purpose the staging buffer as both the device local & host visible allocation for this buffer
+          stagingBufferMemoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+          auto dedicatedAlloc = memoryManager->allocateDedicated(memRequirements.memoryTypeBits, stagingBufferMemoryFlags, (VkDeviceSize)dedicatedAllocationSize);
+
+          if(dedicatedAlloc.first)
+          {
+            hostAllocationNeedsFlush = !memoryManager->isAllocationCoherent(dedicatedAlloc.second);
+            stagingBufferDeviceLocal = true;
+          }
+          else
+          {
+            //..and if we cannot get it, fall back on host coherent memory
+            stagingBufferMemoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+            dedicatedAlloc = memoryManager->allocateDedicated(memRequirements.memoryTypeBits, stagingBufferMemoryFlags, (VkDeviceSize)dedicatedAllocationSize);
+            stagingBufferDeviceLocal = false;
+          }
 
           if(!dedicatedAlloc.first)
           {
-            //TODO:  handle alloc failure...
+            //TODO:  better handle alloc failure...
+            throw vgl_runtime_error("Failed to allocate Vulkan buffer dedicated region.");
           }
+
+          dedicatedHostAllocationId = dedicatedAlloc.second;
         }
 
-        alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits,
-          VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-          memRequirements.size, memRequirements.alignment, false, dedicatedHostAllocationId);
+        alloc = memoryManager->allocate(memRequirements.memoryTypeBits,
+          stagingBufferMemoryFlags, memRequirements.size, memRequirements.alignment, false, dedicatedHostAllocationId);
         buffers[bufferIndex].stagingBufferAllocation = alloc;
 
         vkBindBufferMemory(device, buffers[bufferIndex].stagingBuffer, alloc.memory, alloc.offset);
@@ -201,7 +220,7 @@ namespace vgl
 
         vkGetBufferMemoryRequirements(device, buffers[bufferIndex].buffer, &memRequirements);
 
-        alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        alloc = memoryManager->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
           memRequirements.size, memRequirements.alignment);
         buffers[bufferIndex].bufferAllocation = alloc;
 
@@ -280,14 +299,14 @@ namespace vgl
     void *VulkanBufferGroup::getPersistentlyMappedAddress(int bufferIndex)
     {
       if(!dedicatedAllocation)
-        throw vgl_runtime_error("Cannot use getPersistentlyMappedAddress() on a non dedicated buffer resource");
+        throw vgl_runtime_error("Cannot use VulkanBufferGroup::getPersistentlyMappedAddress() on a non dedicated buffer resource");
 
       auto alloc = buffers[bufferIndex].stagingBufferAllocation;
       if(!persistentlyMappedHostMemoryAddress)
       {
         if(vkMapMemory(device, alloc.memory, 0, dedicatedAllocationSize, 0, &persistentlyMappedHostMemoryAddress) != VK_SUCCESS)
         {
-          throw vgl_runtime_error("Unable to map staging buffer in VulkanBufferGroup::data()!");
+          throw vgl_runtime_error("Unable to map staging buffer in VulkanBufferGroup::getPersistentlyMappedAddress()!");
         }        
       }
 
@@ -315,6 +334,23 @@ namespace vgl
       auto resourceMonitor = instance->getResourceMonitor();
       VulkanAsyncResourceCollection transferResources(resourceMonitor, frameId, handles);
       resourceMonitor->append(move(transferResources));
+    }
+
+    void VulkanBufferGroup::flush(int bufferIndex)
+    {
+      //currently, only persistently mapped buffers could be non coherent
+      if(hostAllocationNeedsFlush && persistentlyMappedHostMemoryAddress)
+      {
+        auto alloc = buffers[bufferIndex].stagingBufferAllocation;
+        //if(vkMapMemory(device, alloc.memory, 0, dedicatedAllocationSize, 0, &persistentlyMappedHostMemoryAddress) != VK_SUCCESS)
+
+        VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
+        range.memory = alloc.memory;
+        range.offset = alloc.offset;
+        range.size = instance->getMemoryManager()->getAllocationSize(alloc);
+
+        vkFlushMappedMemoryRanges(device, 1, &range);
+      }
     }
 
     void VulkanBufferGroup::copyToStaging(int bufferIndex, VkCommandBuffer transferCommandBuffer)

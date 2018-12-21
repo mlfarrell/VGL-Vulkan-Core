@@ -36,6 +36,10 @@ namespace vgl
       VulkanInstance();
       ~VulkanInstance();
 
+      VulkanInstance(const VulkanInstance &rhs) = delete;
+      VulkanInstance(const VulkanInstance &&rhs) = delete;
+      VulkanInstance &operator =(const VulkanInstance &rhs) = delete;
+
       static VulkanInstance &currentInstance();
 
       inline VkInstance get() { return instance; }

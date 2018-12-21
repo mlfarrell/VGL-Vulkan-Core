@@ -392,8 +392,11 @@ namespace vgl
 
           if(vkGetPipelineCacheData(device, pipelineCache, &sz, data) == VK_SUCCESS)
           {
-            //TODO: ifdef VGL in here to get to caches dir
+#ifndef VGL_VULKAN_CORE_STANDALONE
+            ofstream outf(vutil::FileManager::manager().getCacheDirectory() + "/vkPipelineCache.bin", ios::binary);
+#else
             ofstream outf("vkPipelineCache.bin", ios::binary);
+#endif
             outf.write((char *)data, sz);
           }
 

@@ -36,6 +36,7 @@ namespace vgl
       VulkanBufferGroup(VkDevice device, VkCommandPool commandPool, VkQueue queue, int numBuffers);
       ~VulkanBufferGroup();
 
+      ///Returns the underlying vulkan buffer
       VkBuffer get(int bufferIndex);
 
       enum UsageType { UT_VERTEX=0, UT_INDEX, UT_UNIFORM, UT_UNIFORM_DYNAMIC };
@@ -44,8 +45,11 @@ namespace vgl
       inline int getNumBuffers() { return bufferCount; }
       inline size_t getSize(int bufferIndex) { return buffers[bufferIndex].size; }
 
+      ///If set to true, this buffer will prefer device local memory for its final storage location
       ///This must be set BEFORE data() is called to have an effect
-      void setDeviceLocal(bool local);
+      void setPreferredDeviceLocal(bool local);
+
+      ///Returns whether or not the buffer returned by get() is device local or not
       bool isDeviceLocal();
 
       ///If this is true, the entire buffer group's memory allocation will be come from this one dedicated allocation
@@ -77,6 +81,12 @@ namespace vgl
       ///Explicitly retains the async resource handles this class manages for the given frame id (you should never need to call this)
       void retainResourcesUntilFrameCompletion(uint64_t frameId);
 
+      ///If this is true, the dedicated host allocation does not automatically make its updates visible to the GPU (you must flush)
+      inline bool getHostAllocationNeedsFlush() { return hostAllocationNeedsFlush; }
+
+      ///This only has an affect if the given allocation is host visible AND non coherent (needs to be flushed)
+      void flush(int bufferIndex);
+
     protected:
       VulkanInstance *instance;
       VkDevice device;
@@ -93,12 +103,12 @@ namespace vgl
       };
       PerBuffer *buffers;
 
-      bool stageToDevice = true;
+      bool stageToDevice = true, stagingBufferDeviceLocal = false;
       int bufferCount;
       UsageType usageType = UT_VERTEX;
       uint64_t allocationId = 0;
 
-      bool dedicatedAllocation = false;
+      bool dedicatedAllocation = false, hostAllocationNeedsFlush = false;
       size_t dedicatedAllocationSize = 0;
       uint64_t dedicatedHostAllocationId = 0;
       void *persistentlyMappedHostMemoryAddress = nullptr;

@@ -682,8 +682,8 @@ namespace vgl
       int index = uboIndex*numSwapchainImages + imageIndex;
       DynamicUboState &dynamicState = dynamicUboStates[index];
 
-      if(dynamicUbos->isDeviceLocal())
-        throw vgl_runtime_error("Cannot call updateDynamicUboState with device local uniform buffers (you should manually populate buffer in advance instead)");
+      //if(dynamicUbos->isDeviceLocal())
+      //  throw vgl_runtime_error("Cannot call updateDynamicUboState with device local uniform buffers (you should manually populate buffer in advance instead)");
 
       if(!dynamicState.size)
       {

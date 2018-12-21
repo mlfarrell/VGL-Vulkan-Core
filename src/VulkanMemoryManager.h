@@ -67,6 +67,7 @@ namespace vgl
         VkDeviceMemory memory;
         uint32_t size; //in pages
         uint32_t suballocationCount;
+        uint32_t memoryType;
         uint64_t id;
         AllocationType type;
         bool imageOptimal; //for now, the easiest way to deal with bufferImageGranularity & aliasing
@@ -77,6 +78,7 @@ namespace vgl
     public:
       static const uint64_t Any = 0;
 
+      ///Allocation & Freeing of suballocations /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       struct Suballocation
       {
       public:
@@ -99,12 +101,28 @@ namespace vgl
       //Suballocation allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment=0, bool imageOptimal=false);
       void free(const Suballocation &suballocation);
 
-      ///If free mode is set to AT_MANUAL, you'll need to call this before any actual Vulkan allocations are freed
+      ///If free mode is set to AT_MANUAL, you'll need to call this before any actual Vulkan allocations are freed.  
+      ///Use caution when calling during event loop however, this can be a very expensive operation.
       void reclaimMemory();
 
       ///When using this function, the caller is entirely responsible for the returned memory object
       VkDeviceMemory allocateDirect(uint32_t memoryType, VkDeviceSize requiredSize, bool imageOptimal=false);   
       std::pair<VkDeviceMemory, uint64_t> allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, bool allowSuballocation=true, bool imageOptimal=false);
+
+      ///Utilities to determine what kind of memory properties a suballocation has //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+      ///If an allocation is coherent, it is not necessary to manually flush for CPU-made changes to reflect on the GPU
+      bool isAllocationCoherent(const Suballocation &suballocation);
+      bool isAllocationCoherent(uint64_t allocationId);
+      bool isAllocationHostCached(const Suballocation &suballocation);
+      bool isAllocationHostCached(uint64_t allocationId);
+      bool isAllocationHostVisible(const Suballocation &suballocation);
+      bool isAllocationHostVisible(uint64_t allocationId);
+      bool isAllocationDeviceLocal(const Suballocation &suballocation);
+      bool isAllocationDeviceLocal(uint64_t allocationId);
+
+      ///Returns the size in bytes of a given suballocation
+      VkDeviceSize getAllocationSize(const Suballocation &suballocation);
 
     protected:
       static const int pageSize = 4096;
@@ -128,6 +146,8 @@ namespace vgl
 
       std::list<Subregion>::iterator divideSubregion(Allocation &allocation, std::list<Subregion>::iterator region, uint32_t sizeInPages);
       void mergeSubregions(Allocation &allocation, std::list<Subregion>::iterator region1, std::list<Subregion>::iterator region2);
+
+      Allocation *allocationForId(uint64_t allocationId);
 
       VkDevice device;
       Allocation *allocationsPool;

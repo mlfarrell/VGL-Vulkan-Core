@@ -44,6 +44,7 @@ namespace vgl
       switch(allocationStrategy)
       {
         case AS_MOBILE_CONVERVATIVE:
+          //these are the allocation tiers (suballocations < 512k in size go into 1 mb allocations, < 5mb into 25 mb, etc etc)
           allocSizeBoundaries[0][0] = (512<<10);  //512k
           allocSizeBoundaries[0][1] = (5<<20);    //5 mb
           allocSizeBoundaries[0][2] = (25<<20);   //25 mb
@@ -88,12 +89,21 @@ namespace vgl
       {
         allocType = AT_SMALL;
 
-        if(requiredSize > allocSizeBoundaries[0][0])
-          allocType = AT_MED;
+        if(requiredSize > allocSizeBoundaries[0][2])
+        {
+          allocType = AT_DEDICATED;
+          allocationId = allocateDedicated(typeFilter, properties, (VkDeviceSize)requiredSize, true, imageOptimal).second;
+        }
         else if(requiredSize > allocSizeBoundaries[0][1])
+        {
           allocType = AT_LARGE;
-        else if(requiredSize > allocSizeBoundaries[0][2])
-          return {};
+        }
+        else if(requiredSize > allocSizeBoundaries[0][0])
+        {
+          allocType = AT_MED;
+        }
+
+        //vout << "Allocation size requested " << (requiredSize >> 10) << "k getting back allocation type " << (int)allocType << endl;
       }
 
       uint32_t memoryType = findMemoryType(typeFilter, properties);
@@ -305,6 +315,55 @@ namespace vgl
       return allocateDedicated(memoryType, requiredSize, allowSuballocation, imageOptimal);
     }
 
+    bool VulkanMemoryManager::isAllocationCoherent(const Suballocation &suballocation)
+    {
+      return (memoryProperties.memoryTypes[suballocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationCoherent(uint64_t allocationId)
+    {      
+      auto &allocation = *allocationForId(allocationId);
+      return (memoryProperties.memoryTypes[allocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationHostCached(const Suballocation &suballocation)
+    {
+      return (memoryProperties.memoryTypes[suballocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationHostCached(uint64_t allocationId)
+    {
+      auto &allocation = *allocationForId(allocationId);
+      return (memoryProperties.memoryTypes[allocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_CACHED_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationHostVisible(const Suballocation &suballocation)
+    {
+      return (memoryProperties.memoryTypes[suballocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationHostVisible(uint64_t allocationId)
+    {
+      auto &allocation = *allocationForId(allocationId);
+      return (memoryProperties.memoryTypes[allocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationDeviceLocal(const Suballocation &suballocation)
+    {
+      return (memoryProperties.memoryTypes[suballocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationDeviceLocal(uint64_t allocationId)
+    {
+      auto &allocation = *allocationForId(allocationId);
+      return (memoryProperties.memoryTypes[allocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ? true : false;
+    }
+
+    VkDeviceSize VulkanMemoryManager::getAllocationSize(const Suballocation &suballocation)
+    {
+      return (VkDeviceSize)(suballocation.size*pageSize);
+    }
+
     pair<VkDeviceMemory, uint64_t> VulkanMemoryManager::allocateDedicated(uint32_t memoryType, VkDeviceSize requiredSize, bool allowSuballocation, bool imageOptimal)
     {
       pair<VkDeviceMemory, uint64_t> result = { nullptr, 0 };
@@ -327,6 +386,7 @@ namespace vgl
         alloc.size = (uint32_t)fastCeil(requiredSize, pageSize);
         alloc.id = allocationIds++;
         alloc.type = AT_DEDICATED;
+        alloc.memoryType = memoryType;
         alloc.suballocationCount = 0;
         alloc.regions = { { 0, alloc.size, allowSuballocation, subregionIds++ } };
         if(allowSuballocation)
@@ -372,6 +432,7 @@ namespace vgl
         alloc.size = (uint32_t)fastCeil(size, pageSize);
         alloc.id = allocationIds++;
         alloc.type = type;
+        alloc.memoryType = memoryType;
         alloc.suballocationCount = 0;
         alloc.regions = { { 0, alloc.size, true, subregionIds++ } };
         alloc.freeRegions = { { &alloc.regions.back(), alloc.regions.begin() } };
@@ -489,6 +550,19 @@ namespace vgl
       region2->startPage -= region1->size;
       region2->size += region1->size;
       allocation.regions.erase(region1);
+    }
+
+    VulkanMemoryManager::Allocation *VulkanMemoryManager::allocationForId(uint64_t allocationId)
+    {
+      for(uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++)
+      {
+        auto ait = allocationsMap[i].find(allocationId);
+
+        if(ait != allocationsMap[i].end())
+          return allocations[i][ait->second];
+      }
+
+      return nullptr;
     }
 
     void VulkanMemoryManager::cleanupAllocations()

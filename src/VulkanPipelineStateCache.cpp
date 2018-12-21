@@ -110,7 +110,7 @@ namespace vgl
         {
           if(!warned)
           {
-            cerr << "Hash collision on getCachedPSO.  This is generally very bad for performance!" << std::endl;
+            verr << "Vulkan Pipeline State Hash collision on getCachedPSO.  This is generally very bad for performance!" << std::endl;
             warned = true;
           }
 
