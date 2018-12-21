@@ -403,7 +403,27 @@ namespace vgl
       }
 
       if(depthFormat == VK_FORMAT_UNDEFINED)
-        throw vgl_runtime_error("Unable to find Vulkan depth format that matches the requested number of depth bits");
+      {
+        vector<vector<VkFormat>> allFormats({ 
+          { VK_FORMAT_D16_UNORM, VK_FORMAT_D16_UNORM_S8_UINT }, 
+          { VK_FORMAT_D24_UNORM_S8_UINT }, 
+          { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT } 
+        });
+
+        //fallback
+        for(auto &depthFormats : allFormats)
+        {
+          depthFormat = findSupportedFormat(depthFormats, VK_IMAGE_TILING_OPTIMAL,
+            VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT);
+          if(depthFormat != VK_FORMAT_UNDEFINED)
+            break;
+        }
+
+        if(depthFormat != VK_FORMAT_UNDEFINED)
+          vout << "Unable to find Vulkan depth format that matches the requested number of depth bits, falling back on what is supported..." << endl;
+        else
+          throw vgl_runtime_error("Unable to find a supported Vulkan depth format");
+      }
 
       auto device = instance->getDefaultDevice();
       auto pool = instance->getTransferCommandPool();
