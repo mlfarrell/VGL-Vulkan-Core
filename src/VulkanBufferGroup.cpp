@@ -222,6 +222,12 @@ namespace vgl
 
         alloc = memoryManager->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
           memRequirements.size, memRequirements.alignment);
+        if(!alloc)
+        {
+          //must be out of GPU memory, fallback on whater we can use
+          alloc = memoryManager->allocate(memRequirements.memoryTypeBits, 0,
+            memRequirements.size, memRequirements.alignment);
+        }
         buffers[bufferIndex].bufferAllocation = alloc;
 
         if(!allocationId)

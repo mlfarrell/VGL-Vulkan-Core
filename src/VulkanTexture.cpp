@@ -232,6 +232,12 @@ namespace vgl
 
         alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
           memRequirements.size, memRequirements.alignment, true);
+        if(!alloc)
+        {
+          //must be out of GPU memory, fallback on whater we can use
+          alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, 0,
+            memRequirements.size, memRequirements.alignment, true);
+        }
         imageAllocation = alloc;
 
         vkBindImageMemory(device, image, alloc.memory, alloc.offset);
@@ -352,6 +358,12 @@ namespace vgl
 
       alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
         memRequirements.size, memRequirements.alignment, true);
+      if(!alloc)
+      {
+        //must be out of GPU memory, fallback on whater we can use
+        alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, 0,
+          memRequirements.size, memRequirements.alignment, true);
+      }
       imageAllocation = alloc;
 
       vkBindImageMemory(device, image, alloc.memory, alloc.offset);

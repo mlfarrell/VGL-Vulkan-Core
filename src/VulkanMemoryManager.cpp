@@ -30,6 +30,8 @@ namespace vgl
     VulkanMemoryManager::FreeMode VulkanMemoryManager::freeMode = VulkanMemoryManager::FM_MANUAL;
     VkDeviceSize VulkanMemoryManager::allocSizeBoundaries[2][3];
 
+    static const uint32_t NO_MEMORY_TYPE = VK_MAX_MEMORY_TYPES;
+
     //TODO:  take this from vulkan device limits max allocations, but 8192 should be more than enough for most systems for now..
     static const int maxAllocations = 8192;
 
@@ -91,8 +93,13 @@ namespace vgl
 
         if(requiredSize > allocSizeBoundaries[0][2])
         {
+          uint32_t memoryType = findMemoryType(typeFilter, properties);
+
           allocType = AT_DEDICATED;
-          allocationId = allocateDedicated(typeFilter, properties, (VkDeviceSize)requiredSize, true, imageOptimal).second;
+          if(memoryType != NO_MEMORY_TYPE)
+            allocationId = allocateDedicated(memoryType, (VkDeviceSize)requiredSize, true, imageOptimal).second;
+          else
+            return {};
         }
         else if(requiredSize > allocSizeBoundaries[0][1])
         {
@@ -103,20 +110,21 @@ namespace vgl
           allocType = AT_MED;
         }
 
-        //vout << "Allocation size requested " << (requiredSize >> 10) << "k getting back allocation type " << (int)allocType << endl;
+#ifdef DEBUG
+        vout << "Allocation size requested " << (requiredSize >> 10) << "k getting back allocation type " << (int)allocType << endl;
+#endif
       }
 
       uint32_t memoryType = findMemoryType(typeFilter, properties);
+      if(memoryType == NO_MEMORY_TYPE)
+        return {};
       Suballocation suballoc = findSuballocation(memoryType, requiredSize, requiredAlignment, allocType, imageOptimal, allocationId);
 
       if(!suballoc && allocationId == 0)
       {
         //have to create a new allocation
         if(!makeNewAllocation(memoryType, allocType, imageOptimal))
-        {
-          //TODO: handle allocation failure
-          throw vgl_runtime_error("VulkanMemoryManager::allocate failed");
-        }
+          return {};
         suballoc = findSuballocation(memoryType, requiredSize, requiredAlignment, allocType, imageOptimal, allocationId);
 
 #ifdef DEBUG
@@ -289,7 +297,7 @@ namespace vgl
         }
       }
 
-      throw vgl_runtime_error("VulkanMemoryManager::findMemoryType failed to find suitable memory type!");
+      return NO_MEMORY_TYPE;
     }
 
     VkDeviceMemory VulkanMemoryManager::allocateDirect(uint32_t memoryType, VkDeviceSize requiredSize, bool imageOptimal)
@@ -311,8 +319,14 @@ namespace vgl
 
     pair<VkDeviceMemory, uint64_t> VulkanMemoryManager::allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, bool allowSuballocation, bool imageOptimal)
     {
+      lock_guard<mutex> locker(managerLock);
+
       uint32_t memoryType = findMemoryType(typeFilter, properties);
-      return allocateDedicated(memoryType, requiredSize, allowSuballocation, imageOptimal);
+
+      if(memoryType != NO_MEMORY_TYPE)
+        return allocateDedicated(memoryType, requiredSize, allowSuballocation, imageOptimal);
+
+      return { nullptr, 0 };
     }
 
     bool VulkanMemoryManager::isAllocationCoherent(const Suballocation &suballocation)
