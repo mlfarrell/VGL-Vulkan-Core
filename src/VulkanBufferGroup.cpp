@@ -156,7 +156,7 @@ namespace vgl
 
       if(!buffers[bufferIndex].stagingBuffer)
       {
-        auto stagingBufferMemoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+        auto stagingBufferMemoryFlags = (dedicatedHostAllocationId) ? dedicatedHostAllocationMemoryFlags : (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
         bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
         bufferInfo.size = numBytes;
@@ -198,6 +198,7 @@ namespace vgl
           }
 
           dedicatedHostAllocationId = dedicatedAlloc.second;
+          dedicatedHostAllocationMemoryFlags = (VkMemoryPropertyFlagBits)stagingBufferMemoryFlags;
         }
 
         alloc = memoryManager->allocate(memRequirements.memoryTypeBits,

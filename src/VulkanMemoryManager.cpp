@@ -611,7 +611,7 @@ namespace vgl
             auto &regions = newAllocationsPool[newAi].regions;
 
             found = false;
-            for(auto srIt = regions.begin(); srIt != regions.end(); srIt++) 
+            for(auto srIt = regions.begin(); srIt != regions.end(); srIt++)
             {
               if(srIt->id == fr.first->id)
               {

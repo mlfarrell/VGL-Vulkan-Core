@@ -111,6 +111,7 @@ namespace vgl
       bool dedicatedAllocation = false, hostAllocationNeedsFlush = false;
       size_t dedicatedAllocationSize = 0;
       uint64_t dedicatedHostAllocationId = 0;
+      VkMemoryPropertyFlagBits dedicatedHostAllocationMemoryFlags;
       void *persistentlyMappedHostMemoryAddress = nullptr;
 
       void copyToStaging(int bufferIndex, VkCommandBuffer transferCommandBuffer);
