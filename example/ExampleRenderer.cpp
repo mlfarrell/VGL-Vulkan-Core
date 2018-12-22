@@ -49,7 +49,7 @@ ExampleRenderer::ExampleRenderer()
   dynamicUbos = new VulkanBufferGroup(instance->getDefaultDevice(), instance->getTransferCommandPool(), instance->getGraphicsQueue(), 
     numSwapChainImages);
   dynamicUbos->setUsageType(VulkanBufferGroup::UT_UNIFORM_DYNAMIC);
-  dynamicUbos->setDeviceLocal(false);
+  dynamicUbos->setPreferredDeviceLocal(false);
   dynamicUbos->setDedicatedAllocation(true, totalDynamicUboSize + 8192);
   for(int i = 0; i < numSwapChainImages; i++)
     dynamicUbos->data(i, nullptr, totalDynamicUboSize / numSwapChainImages);
@@ -352,7 +352,7 @@ void ExampleRenderer::recoverFromDynamicUBOOverflow()
   dynamicUbos = new VulkanBufferGroup(instance->getDefaultDevice(), instance->getTransferCommandPool(), instance->getGraphicsQueue(),
     numSwapChainImages);
   dynamicUbos->setUsageType(VulkanBufferGroup::UT_UNIFORM_DYNAMIC);
-  dynamicUbos->setDeviceLocal(false);
+  dynamicUbos->setPreferredDeviceLocal(false);
   dynamicUbos->setDedicatedAllocation(true, totalDynamicUboSize + 8192);
   for(int i = 0; i < numSwapChainImages; i++)
     dynamicUbos->data(i, nullptr, totalDynamicUboSize / numSwapChainImages);
