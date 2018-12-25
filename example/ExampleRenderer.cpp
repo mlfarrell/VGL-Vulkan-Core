@@ -397,6 +397,7 @@ void ExampleRenderer::prepareToDraw()
 
   if(clDynamicUboDirty)
   {
+    dynamicUbos->flush(currentFrameImage);
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentShaders->getPipelineLayout(), 0, 1, 
       &dynamicUboSets[currentFrameImage], 1, &currentDynamicUboOffset);
     clDynamicUboDirty = false;
