@@ -49,8 +49,6 @@ Then, open the Example.xcode Project and build.
 
 - Rendering performant OpenGL-style thick lines WITHOUT using a geometry shader would be a nice addition.
 
-The memory manager currently does not expose or support non-coherent memory (I'll take care of this myself shortly, so no worries here)
-
 ## License
 
 This software is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
