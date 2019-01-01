@@ -240,7 +240,7 @@ namespace vgl
           //for performance reasons, its best to ensure all buffers in a group live within the same allocation
           //TODO:  this, defer it somehow until we know buffers are done being populated, then stage everything to
           //the same allocation
-          cerr << "Vulkan Performance Warning:  buffer group allocations fall across suballocation boundary!" << endl;
+          verr << "Vulkan Performance Warning:  buffer group allocations fall across suballocation boundary!" << endl;
         }
 
         vkBindBufferMemory(device, buffers[bufferIndex].buffer, alloc.memory, alloc.offset);

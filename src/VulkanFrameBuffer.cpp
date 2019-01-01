@@ -471,5 +471,10 @@ namespace vgl
       if(vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS)
         throw vgl_runtime_error("Failed to create vulkan render pass!");
     }
+    
+    void VulkanFrameBuffer::setClearColorValue(VkClearColorValue color)
+    {
+      clearColorValue = color;
+    }
   }
 }

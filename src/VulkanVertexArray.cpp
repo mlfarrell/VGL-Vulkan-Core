@@ -66,7 +66,7 @@ namespace vgl
       VkDeviceSize offsets[MaxBindings] = { 0 };
 
 #ifndef VGL_VULKAN_CORE_STANDALONE
-      auto &csm = vgl::StateMachine::machine().getCoreStateMachine();
+      const auto &csm = vgl::StateMachine::machine().getCoreStateMachine();
 
       if(bindingsDirty)
       {

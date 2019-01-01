@@ -63,6 +63,9 @@ namespace vgl
 
       VulkanDescriptorPool *getCurrentDescriptorPool(int imageIndex=0);
       void replaceDescriptorPool(int imageIndex, VulkanDescriptorPool *pool);
+      
+      void setClearColorValue(VkClearColorValue color);
+      inline VkClearColorValue getClearColorValue() { return clearColorValue; }
 
     protected:
       void createRenderPass(VulkanSwapChain *swapchain);
@@ -86,6 +89,7 @@ namespace vgl
       VulkanTexture *depthAttachment = nullptr;
       int numColorAttachments = 0;
       bool clearLoadOp = true;
+      VkClearColorValue clearColorValue = { 0.0f, 0.0f, 0.0f, 1.0f };
       uint32_t w = 0, h = 0;
 
       //the descriptor pool thing is nowhere close to finalized yet..
