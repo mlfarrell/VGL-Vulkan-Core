@@ -161,6 +161,7 @@ private:
   size_t totalDynamicUboSize = 0;
   int currentFrameImage = -1, previousFrameImage = -1;
   uint32_t currentDynamicUboOffset = 0, currentDynamicUboEnd = 0;
+  VkDeviceSize nonCoherentAtomSz = 0;
 
   bool blendingOn = false;
   int4 viewport;

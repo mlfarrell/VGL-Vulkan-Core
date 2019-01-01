@@ -349,7 +349,6 @@ namespace vgl
       if(hostAllocationNeedsFlush && persistentlyMappedHostMemoryAddress)
       {
         auto alloc = buffers[bufferIndex].stagingBufferAllocation;
-        //if(vkMapMemory(device, alloc.memory, 0, dedicatedAllocationSize, 0, &persistentlyMappedHostMemoryAddress) != VK_SUCCESS)
 
         VkMappedMemoryRange range = { VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE };
         range.memory = alloc.memory;

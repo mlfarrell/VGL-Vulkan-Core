@@ -50,7 +50,15 @@ ExampleRenderer::ExampleRenderer()
     numSwapChainImages);
   dynamicUbos->setUsageType(VulkanBufferGroup::UT_UNIFORM_DYNAMIC);
   dynamicUbos->setPreferredDeviceLocal(false);
+  
+  //in case the dynamic UBO is non-coherent, we need to ensure buffer/flush boundaries align to the "non coherent atom size"
+  //using a power-of-2 for total size really almost gaurantees this, but checking to be safe
+  nonCoherentAtomSz = instance->getPhysicalDeviceProperties().limits.nonCoherentAtomSize;
+  if((totalDynamicUboSize / numSwapChainImages) % nonCoherentAtomSz)
+    verr << "Total dynamic UBO size not a multiple of nonCoherentAtomSz (cannot use non coherent memory for dynamic UBOs)" << endl;
+  
   dynamicUbos->setDedicatedAllocation(true, totalDynamicUboSize + 8192);
+  
   for(int i = 0; i < numSwapChainImages; i++)
     dynamicUbos->data(i, nullptr, totalDynamicUboSize / numSwapChainImages);
 
@@ -347,6 +355,7 @@ void ExampleRenderer::recoverFromDynamicUBOOverflow()
 
   //Another note.. this buffer is split up and by ALL swapchain images at once!  So lets schedule it for a few frames ahead
   dynamicUbos->retainResourcesUntilFrameCompletion(frame+(uint64_t)numSwapChainImages);
+  dynamicUbos->flush(currentFrameImage);
   delete dynamicUbos;
 
   dynamicUbos = new VulkanBufferGroup(instance->getDefaultDevice(), instance->getTransferCommandPool(), instance->getGraphicsQueue(),
@@ -397,7 +406,7 @@ void ExampleRenderer::prepareToDraw()
 
   if(clDynamicUboDirty)
   {
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentShaders->getPipelineLayout(), 0, 1, 
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentShaders->getPipelineLayout(), 0, 1,
       &dynamicUboSets[currentFrameImage], 1, &currentDynamicUboOffset);
     clDynamicUboDirty = false;
   }
@@ -754,6 +763,8 @@ void ExampleRenderer::beginFrame()
 
 void ExampleRenderer::endFrame()
 {
+  dynamicUbos->flush(currentFrameImage);
+
   if(auto transfer = instance->getCurrentTransferCommandBuffer().first)
     endSetup(false);
 
@@ -828,6 +839,8 @@ void ExampleRenderer::beginOffscreenFrame()
 void ExampleRenderer::endOffscreenFrame()
 {
   auto commandBuffer = instance->getCurrentRenderingCommandBuffer();
+  
+  dynamicUbos->flush(currentFrameImage);
 
   vkCmdEndRenderPass(commandBuffer);
   if(vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
