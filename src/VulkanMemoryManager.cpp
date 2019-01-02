@@ -110,9 +110,8 @@ namespace vgl
           allocType = AT_MED;
         }
 
-#ifdef DEBUG
-        vout << "Allocation size requested " << (requiredSize >> 10) << "k getting back allocation type " << (int)allocType << endl;
-#endif
+        //vout << "Allocation size requested " << (requiredSize >> 10) << " kb getting back allocation type " << (int)allocType << endl;
+        //vout << "Current allocation total: " << (allocatedBytes >> 20) << " mb" << endl;
       }
 
       uint32_t memoryType = findMemoryType(typeFilter, properties);
@@ -124,12 +123,44 @@ namespace vgl
       {
         //have to create a new allocation
         if(!makeNewAllocation(memoryType, allocType, imageOptimal))
-          return {};
+        {
+          const uint64_t memoryTypeBit = (1ull<<memoryType);
+
+          //we must be low on this heap, try with a smaller allocation if we can
+          if(allocType == AT_LARGE && requiredSize < allocSizeBoundaries[1][(int)AT_MED])
+          {
+            allocType = AT_MED;
+            if(!makeNewAllocation(memoryType, allocType, imageOptimal))
+            {
+              if((lowMemoryFlags & memoryTypeBit) == 0)
+              {
+                //try again after opening up larger dedicated allocations
+                lowMemoryFlags |= memoryTypeBit;
+              }
+              else
+              {
+                return {};
+              }
+            }
+          }
+          else
+          {
+            if((lowMemoryFlags & memoryTypeBit) == 0)
+            {
+              //try again after opening up larger dedicated allocations
+              lowMemoryFlags |= memoryTypeBit;
+            }
+            else
+            {
+              return {};
+            }
+          }
+        }
         suballoc = findSuballocation(memoryType, requiredSize, requiredAlignment, allocType, imageOptimal, allocationId);
 
 #ifdef DEBUG
         //this shouldn't be possible
-        if(suballoc && requiredAlignment > 0 && suballoc.offset > 0)
+        if(suballoc && requiredAlignment > 0 && suballoc.offset % requiredAlignment)
           throw vgl_runtime_error("VulkanMemoryManager::allocate alignment failed");
 
         if(!suballoc)
@@ -411,6 +442,7 @@ namespace vgl
         allocationsMap[memoryType][alloc.id] = allocations[memoryType].size()-1;
 
         result.second = alloc.id;
+        allocatedBytes += requiredSize;
       }
 
       return result;
@@ -451,9 +483,10 @@ namespace vgl
         alloc.regions = { { 0, alloc.size, true, subregionIds++ } };
         alloc.freeRegions = { { &alloc.regions.back(), alloc.regions.begin() } };
         alloc.imageOptimal = imageOptimal;
-        allocationsMap[memoryType][alloc.id] = allocations[memoryType].size()-1;        
-      }
+        allocationsMap[memoryType][alloc.id] = allocations[memoryType].size()-1;       
 
+        allocatedBytes += size;
+      }
       return result;
     }
 
@@ -504,11 +537,25 @@ namespace vgl
         //find by type
         if(!allocationId)
         {
-          if(allocation.memory && allocation.type == type && allocation.imageOptimal == imageOptimal)
+          if((lowMemoryFlags & (1ull<<memoryType)) == 0)
           {
-            if(auto potentialResult = searchAllocation(alloc))
+            if(allocation.memory && allocation.type == type && allocation.imageOptimal == imageOptimal)
             {
-              return potentialResult;
+              if(auto potentialResult = searchAllocation(alloc))
+              {
+                return potentialResult;
+              }
+            }
+          }
+          else
+          {
+            //widen our search to larger allocation types
+            if((int)allocation.type <= (int)AT_LARGE && (int)allocation.type >= (int)type)
+            {
+              if(auto potentialResult = searchAllocation(alloc))
+              {
+                return potentialResult;
+              }
             }
           }
         }

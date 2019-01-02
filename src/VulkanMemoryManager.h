@@ -153,6 +153,8 @@ namespace vgl
       Allocation *allocationsPool;
       std::vector<Allocation *> allocations[VK_MAX_MEMORY_TYPES];
       std::map<uint64_t, uint64_t> allocationsMap[VK_MAX_MEMORY_TYPES];
+      uint64_t lowMemoryFlags = 0;
+      size_t allocatedBytes = 0; //across all heaps
       //std::vector<Subregion> subregionPools[VK_MAX_MEMORY_TYPES];
       uint64_t allocationIds = 1, subregionIds = 1, ai = 0, invalidatedSubregionIds = 0;
     };

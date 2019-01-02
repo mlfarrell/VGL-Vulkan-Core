@@ -383,7 +383,11 @@ namespace vgl
       }
       else
       {
-        subpass.pResolveAttachments = (firstColorResolveTargetIndex == -1) ? nullptr : colorAttachmentRefs+firstColorResolveTargetIndex;
+        if(firstColorResolveTargetIndex != -1)
+        {
+          subpass.pResolveAttachments = colorAttachmentRefs+firstColorResolveTargetIndex;
+          attachments[subpass.pResolveAttachments[0].attachment].loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+        }
       }
 
       VulkanTexture *depthAttachmentTex = depthAttachment;

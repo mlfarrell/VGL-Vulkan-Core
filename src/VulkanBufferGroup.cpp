@@ -182,6 +182,7 @@ namespace vgl
           {
             hostAllocationNeedsFlush = !memoryManager->isAllocationCoherent(dedicatedAlloc.second);
             stagingBufferDeviceLocal = true;
+            isResident = true;
           }
           else
           {
@@ -189,6 +190,7 @@ namespace vgl
             stagingBufferMemoryFlags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
             dedicatedAlloc = memoryManager->allocateDedicated(memRequirements.memoryTypeBits, stagingBufferMemoryFlags, (VkDeviceSize)dedicatedAllocationSize);
             stagingBufferDeviceLocal = false;
+            isResident = false;
           }
 
           if(!dedicatedAlloc.first)
@@ -225,9 +227,14 @@ namespace vgl
           memRequirements.size, memRequirements.alignment);
         if(!alloc)
         {
-          //must be out of GPU memory, fallback on whater we can use
+          //must be out of GPU memory, fallback on whatever we can use
           alloc = memoryManager->allocate(memRequirements.memoryTypeBits, 0,
             memRequirements.size, memRequirements.alignment);
+          isResident = false;
+        }
+        else
+        {
+          isResident = true;
         }
         buffers[bufferIndex].bufferAllocation = alloc;
 

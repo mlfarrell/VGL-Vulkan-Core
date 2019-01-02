@@ -52,6 +52,9 @@ namespace vgl
       ///Returns whether or not the buffer returned by get() is device local or not
       bool isDeviceLocal();
 
+      ///True if this texture is currently resident on the device
+      inline bool isDeviceResident() { return isResident; }
+
       ///If this is true, the entire buffer group's memory allocation will be come from this one dedicated allocation
       ///For now, this is required to be set if persistent mapping is desired.  This must be set
       ///BEFORE data() is called to have an effect.  For now, this only effects the host-visible memory.
@@ -104,6 +107,7 @@ namespace vgl
       PerBuffer *buffers;
 
       bool stageToDevice = true, stagingBufferDeviceLocal = false;
+      bool isResident = false;
       int bufferCount;
       UsageType usageType = UT_VERTEX;
       uint64_t allocationId = 0;

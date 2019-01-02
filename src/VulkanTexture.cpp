@@ -90,6 +90,18 @@ namespace vgl
 
     void VulkanTexture::putDescriptor(VkDescriptorSet set, uint32_t binding, uint32_t arrayElement)
     {
+      if(deferImageCreation && !imageHandle)
+      {
+        createImage();
+        for(int i = 0; i < numArrayLayers; i++)
+          copyToImage(i, instance->getTransferCommandBuffer().first);
+
+        createImageView();
+        createSampler();
+
+        imageHandle = VulkanAsyncResourceHandle::newImage(instance->getResourceMonitor(), device, image, imageView, imageAllocation);
+      }
+
       //sampler out of date?
       if(samplerDirty)
       {
@@ -170,10 +182,9 @@ namespace vgl
         return;
 
       VkBufferCreateInfo bufferInfo = {};
-      VkMemoryRequirements memRequirements;
       VulkanMemoryManager::Suballocation alloc;
 
-      if(!stagingBuffer || !stagingBufferTransferDst)
+      if(!stagingBuffer)
       {
         if(stagingBufferHandle && stagingBufferHandle->release())
           delete stagingBufferHandle;
@@ -193,54 +204,8 @@ namespace vgl
         else
           numMipLevels = 1;
 
-        VkImageCreateInfo imageInfo = {};
-        imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-        switch(type)
-        {
-          case TT_1D:
-            imageInfo.imageType = VK_IMAGE_TYPE_1D;
-          break;
-          case TT_2D:
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-          break;
-          case TT_CUBE_MAP:
-            numArrayLayers = 6;
-            imageInfo.imageType = VK_IMAGE_TYPE_2D;
-          break;
-        }
-        imageInfo.extent.width = width;
-        imageInfo.extent.height = height;
-        imageInfo.extent.depth = depth;
-        imageInfo.format = format;
-        imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
-        imageInfo.arrayLayers = numArrayLayers;
-        imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-        imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
-        imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-        imageInfo.samples = samplesToSampleCountBits(numSamples);
-        imageInfo.mipLevels = numMipLevels;
-        if(type == TT_CUBE_MAP)
-          imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
-
-        if(mipmapEnabled)
-          imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
-
-        if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
-          throw std::runtime_error("Failed to create Vulkan image!");
-
-        vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-        alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-          memRequirements.size, memRequirements.alignment, true);
-        if(!alloc)
-        {
-          //must be out of GPU memory, fallback on whater we can use
-          alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, 0,
-            memRequirements.size, memRequirements.alignment, true);
-        }
-        imageAllocation = alloc;
-
-        vkBindImageMemory(device, image, alloc.memory, alloc.offset);
+        if(!deferImageCreation)
+          createImage();
       }
 
       alloc = stagingBufferAllocation;
@@ -254,14 +219,17 @@ namespace vgl
 
       isShaderRsrc = true;
 
-      copyToImage(layerIndex, transferCommandBuffer);
-
-      if(newImage)
+      if(!deferImageCreation)
       {
-        createImageView();
-        createSampler();
+        copyToImage(layerIndex, transferCommandBuffer);
 
-        imageHandle = VulkanAsyncResourceHandle::newImage(instance->getResourceMonitor(), device, image, imageView, imageAllocation);
+        if(newImage)
+        {
+          createImageView();
+          createSampler();
+
+          imageHandle = VulkanAsyncResourceHandle::newImage(instance->getResourceMonitor(), device, image, imageView, imageAllocation);
+        }
       }
     }
 
@@ -308,6 +276,7 @@ namespace vgl
       this->numMultiSamples = (int)samplesToSampleCountBits(numSamples);
       numMipLevels = 1;
 
+      //TODO: defer this as well if deferImageCreation is true
       VkImageCreateInfo imageInfo = {};
       imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
       switch(type)
@@ -827,6 +796,65 @@ namespace vgl
       stagingBufferHandle = VulkanAsyncResourceHandle::newBuffer(instance->getResourceMonitor(), device, stagingBuffer, alloc);
     }
 
+    void VulkanTexture::createImage()
+    {
+      VkMemoryRequirements memRequirements;
+      VkImageCreateInfo imageInfo = {};
+
+      imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+      switch(type)
+      {
+        case TT_1D:
+          imageInfo.imageType = VK_IMAGE_TYPE_1D;
+        break;
+        case TT_2D:
+          imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        break;
+        case TT_CUBE_MAP:
+          numArrayLayers = 6;
+          imageInfo.imageType = VK_IMAGE_TYPE_2D;
+        break;
+      }
+      imageInfo.extent.width = width;
+      imageInfo.extent.height = height;
+      imageInfo.extent.depth = depth;
+      imageInfo.format = format;
+      imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+      imageInfo.arrayLayers = numArrayLayers;
+      imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+      imageInfo.usage = VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT;
+      imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+      imageInfo.samples = (VkSampleCountFlagBits)numMultiSamples;
+      imageInfo.mipLevels = numMipLevels;
+      if(type == TT_CUBE_MAP)
+        imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
+
+      if(mipmapEnabled)
+        imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
+
+      if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
+        throw std::runtime_error("Failed to create Vulkan image!");
+
+      vkGetImageMemoryRequirements(device, image, &memRequirements);
+      auto alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        memRequirements.size, memRequirements.alignment, true);
+
+      if(!alloc)
+      {
+        //must be out of GPU memory, fallback on whatever we can use
+        alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, 0,
+          memRequirements.size, memRequirements.alignment, true);
+        isResident = false;
+      }
+      else
+      {
+        isResident = true;
+      }
+
+      imageAllocation = alloc;
+      vkBindImageMemory(device, image, alloc.memory, alloc.offset);
+    }
+
     void VulkanTexture::createImageView()
     {
       VkImageViewCreateInfo createInfo = {};
@@ -1000,6 +1028,11 @@ namespace vgl
           });
         resourceMonitor->append(move(frameResources));
       }
+    }
+
+    void VulkanTexture::setDeferImageCreation(bool defer)
+    {
+      deferImageCreation = defer;
     }
 
 #ifndef VGL_VULKAN_CORE_STANDALONE

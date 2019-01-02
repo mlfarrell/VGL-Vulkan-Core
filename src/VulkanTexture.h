@@ -78,10 +78,17 @@ namespace vgl
       inline VkExtent2D getDimensions() { return { width, height }; }
       inline VkSampleCountFlagBits getMultiSamples() { return (VkSampleCountFlagBits)numMultiSamples; }
 
+      ///True if this texture is currently resident on the device
+      inline bool isDeviceResident() { return isResident; }
+
       ///True if this texture was created with the notion that it would be used for sampled images inside shaders
       inline bool isShaderResource() { return isShaderRsrc; }
 
-      inline bool isUndefined() { return (imageView == VK_NULL_HANDLE); }
+      inline bool isUndefined() { return (stagingBufferHandle == nullptr && imageHandle == nullptr); }
+
+      ///If enabled, actuaul GPU texture image will not be created until this texture is used in a render 
+      ///(has to be enabled BEFORE imageData is called for it to have an effect)
+      void setDeferImageCreation(bool defer);
 
 #ifndef VGL_VULKAN_CORE_STANDALONE
       void bind(int binding);
@@ -104,7 +111,9 @@ namespace vgl
       uint32_t width = 0, height = 0, depth = 1;
       uint32_t numMipLevels = 0, numArrayLayers = 0;
       uint32_t numMultiSamples = 1;
+      bool deferImageCreation = false;
       bool isDepth = false, isStencil = false, isShaderRsrc = false, isSwapchainImage = false, stagingBufferTransferDst = false;
+      bool isResident = false;
 
       SamplerFilterType minFilter = ST_LINEAR, magFilter = ST_LINEAR;
       VkSamplerCreateInfo samplerState;
@@ -118,6 +127,7 @@ namespace vgl
       void submitOneTimeCommandBuffer(VkCommandBuffer commandBuffer, bool wait=false);
 
       void createStagingBuffer(bool needsTransferDest);
+      void createImage();
       void createImageView();
       void createSampler();
       void copyToImage(uint32_t layerIndex, VkCommandBuffer transferCommandBuffer);
