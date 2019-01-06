@@ -1,4 +1,7 @@
 # VGL Vulkan Core
+
+![](https://vertostudio.com/img/vkcore_thumb.png)
+
 This is an open source distribution of the core that runs the Verto Studio Graphics Library (VGL) engine.
 The design goals are firstmost to support the general purpose OpenGL-like engine that powers Verto Studio 3D, a cross-platform 3D modeling application.
 Secondly, with the first goal in mind, the engine should offer reasonable high performance.  MoktenVK is a required target for this system, so certain Vulkan features will not be exposed/utilized.
