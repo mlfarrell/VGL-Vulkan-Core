@@ -25,13 +25,21 @@ namespace vgl
     class VulkanDescriptorSetLayout
     {
     public:
+      enum ShaderStageUsageLevel
+      {
+        //for images, these are cumulative in the order of (fragment, vertex, geometry)
+        //for uniform buffers, these are cumulative in the order of (geometry, vertex, fragment)
+        SSU_FRAGMENT, SSU_VERTEX, SSU_GEOMETRY
+      };
+
       ///Simple convenient way to specify an most common type of descriptor set layout
       struct Binding
       {
         int binding;
         int bindingCount;
       };
-      VulkanDescriptorSetLayout(VkDevice device, Binding vertexUboBinding, Binding fragmentUboBinding, Binding fragmentCombinedSamplerBinding, bool dynamicUbos=false);
+      VulkanDescriptorSetLayout(VkDevice device, Binding vertexOrDynamicUboBinding, Binding uboBinding, Binding combinedSamplerBinding, 
+        bool dynamicUbos=false, ShaderStageUsageLevel extendedStageSamplerLevel=SSU_FRAGMENT, ShaderStageUsageLevel extendedStageUboLevel=SSU_VERTEX);
 
       ///Explicit way to create descriptor set layout
       VulkanDescriptorSetLayout(VkDevice device, const VkDescriptorSetLayoutCreateInfo &createInfo);

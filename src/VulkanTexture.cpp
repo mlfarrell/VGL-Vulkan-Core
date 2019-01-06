@@ -462,7 +462,7 @@ namespace vgl
       if(enabled)
       {
         mipmapEnabled = enabled;
-        samplerState.mipmapMode = (magFilter == ST_LINEAR_MIPMAP_LINEAR) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
+        samplerState.mipmapMode = (minFilter == ST_LINEAR_MIPMAP_LINEAR) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerState.mipLodBias = lodBias;
         samplerState.minLod = 0;
         samplerState.maxLod = (float)numMipLevels;

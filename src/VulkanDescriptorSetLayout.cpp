@@ -25,41 +25,50 @@ namespace vgl
 {
   namespace core
   {
-    VulkanDescriptorSetLayout::VulkanDescriptorSetLayout(VkDevice device, Binding vertexUboBinding, Binding fragmentUboBinding, Binding fragmentCombinedSamplerBinding, bool dynamicUbos)
-      : device(device)
+    VulkanDescriptorSetLayout::VulkanDescriptorSetLayout(VkDevice device, Binding vertexOrDynamicUboBinding, Binding uboBinding, Binding combinedSamplerBinding, bool dynamicUbos,
+      ShaderStageUsageLevel extendedStageSamplerLevel, ShaderStageUsageLevel extendedStageUboLevel) : device(device)
     {
       VkDescriptorSetLayoutCreateInfo createInfo = {};
       vector<VkDescriptorSetLayoutBinding> bindings;
 
-      bindings.reserve(vertexUboBinding.bindingCount+fragmentUboBinding.bindingCount+fragmentCombinedSamplerBinding.bindingCount);
+      bindings.reserve(vertexOrDynamicUboBinding.bindingCount+uboBinding.bindingCount+combinedSamplerBinding.bindingCount);
            
-      for(int i = 0; i < vertexUboBinding.bindingCount; i++)
+      for(int i = 0; i < vertexOrDynamicUboBinding.bindingCount; i++)
       {
         VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-        uboLayoutBinding.binding = vertexUboBinding.binding+i;
+        uboLayoutBinding.binding = vertexOrDynamicUboBinding.binding+i;
         uboLayoutBinding.descriptorType = (!dynamicUbos) ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         uboLayoutBinding.descriptorCount = 1;
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT; //VkTodo: this is stupid
+        uboLayoutBinding.stageFlags = (!dynamicUbos) ? (VK_SHADER_STAGE_VERTEX_BIT) : (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         bindings.push_back(uboLayoutBinding);
       }
 
-      for(int i = 0; i < fragmentUboBinding.bindingCount; i++)
+      for(int i = 0; i < uboBinding.bindingCount; i++)
       {
         VkDescriptorSetLayoutBinding uboLayoutBinding = {};
-        uboLayoutBinding.binding = fragmentUboBinding.binding+i;
-        uboLayoutBinding.descriptorType = (!dynamicUbos) ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
+        uboLayoutBinding.binding = uboBinding.binding+i;        
+        uboLayoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
         uboLayoutBinding.descriptorCount = 1;
-        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        uboLayoutBinding.stageFlags = VK_SHADER_STAGE_GEOMETRY_BIT;
+        if(extendedStageUboLevel == SSU_VERTEX)
+          uboLayoutBinding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+        else if(extendedStageUboLevel == SSU_FRAGMENT)
+          uboLayoutBinding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
+
         bindings.push_back(uboLayoutBinding);
       }
 
-      for(int i = 0; i < fragmentCombinedSamplerBinding.bindingCount; i++)
+      for(int i = 0; i < combinedSamplerBinding.bindingCount; i++)
       {
         VkDescriptorSetLayoutBinding layoutBinding = {};
-        layoutBinding.binding = fragmentCombinedSamplerBinding.binding+i;
+        layoutBinding.binding = combinedSamplerBinding.binding+i;
         layoutBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         layoutBinding.descriptorCount = 1;
         layoutBinding.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
+        if(extendedStageSamplerLevel == SSU_VERTEX)
+          layoutBinding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT;
+        else if(extendedStageSamplerLevel == SSU_GEOMETRY)
+          layoutBinding.stageFlags |= VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT;
         bindings.push_back(layoutBinding);
       }
 
