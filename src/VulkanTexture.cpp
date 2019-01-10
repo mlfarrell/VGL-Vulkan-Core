@@ -332,6 +332,11 @@ namespace vgl
         //must be out of GPU memory, fallback on whater we can use
         alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, 0,
           memRequirements.size, memRequirements.alignment, true);
+        isResident = false;
+      }
+      else
+      {
+        isResident = true;
       }
       imageAllocation = alloc;
 

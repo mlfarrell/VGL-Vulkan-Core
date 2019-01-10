@@ -490,17 +490,17 @@ namespace vgl
       return result;
     }
 
+    static inline VkDeviceSize align(VkDeviceSize size, VkDeviceSize alignment)
+    {
+      VkDeviceSize m = size % alignment;
+      return m ? (size + (alignment - m)) : size;
+    }
+
     VulkanMemoryManager::Suballocation VulkanMemoryManager::findSuballocation(uint32_t memoryType, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment, AllocationType type, bool imageOptimal, uint64_t allocationId)
     {
       uint32_t requiredPageSize = (uint32_t)fastCeil(requiredSize, pageSize);
       Suballocation result = nullptr;
-
-      //it'd be extremely unlikely for 4096 to not work for a requested alignment
-      if(requiredAlignment / pageSize > 1)
-      {
-        throw vgl_runtime_error("VulkanMemoryManager::findSuballocation() failed to obtain correct alignment for suballocation");
-      }
-
+      
       auto searchAllocation = [=](Allocation *targetAllocation) {
         auto &allocation = *targetAllocation;
         Suballocation result = nullptr;
@@ -508,20 +508,30 @@ namespace vgl
         for(auto srIt = allocation.freeRegions.begin(); srIt != allocation.freeRegions.end(); srIt++)
         {
           auto sr = srIt->first;
+          VkDeviceSize withinPageOffset = 0;
+          uint32_t alignedRequiredPageSz = requiredPageSize;
 
-          if(sr->free && requiredPageSize <= sr->size)
+          if(requiredAlignment / pageSize > 1)
+          {
+            //handle required alignment that is larger than the page size
+            VkDeviceSize fullOffset = align(sr->startPage*pageSize, requiredAlignment);
+            withinPageOffset = fullOffset - (sr->startPage*pageSize);
+            alignedRequiredPageSz = (uint32_t)fastCeil(requiredSize+withinPageOffset, pageSize);
+          }
+
+          if(sr->free && alignedRequiredPageSz <= sr->size)
           {
             result.memory = allocation.memory;
-            result.offset = sr->startPage*pageSize;
-            result.size = requiredPageSize;
+            result.offset = sr->startPage*pageSize + withinPageOffset;
+            result.size = alignedRequiredPageSz;
             result.memoryType = memoryType;
             result.allocationId = allocation.id;
 
-            auto region = divideSubregion(allocation, srIt->second, requiredPageSize);
+            auto region = divideSubregion(allocation, srIt->second, alignedRequiredPageSz);
             result.subregionIt = region;
             result.subregionId = region->id;
             allocation.suballocationCount++;
-
+            
             return result;
           }
         }
