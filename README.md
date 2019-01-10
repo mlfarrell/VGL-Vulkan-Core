@@ -13,6 +13,20 @@ a 3D modeling tool.
 
 To get an idea of how this core can be used to replace an OpenGL 3.x engine, see the example source code (ExampleRenderer.cpp & Example.cpp)
 
+## Features
+
+- First-class `VulkanSwapChain` class with implementations for windows & mac (moltenVk) surfaces
+- Built-in thread-safe memory manager & heap manager using tier-based allocation capable of providing suballocations to various resources (such as buffers, images, etc).  
+- Online GLSL compilation via shaderc built in to first-class `VulkanShaderProgram` object.
+- Simple SPV shader introspection to determine information about sampled image and uniform buffer members in built shader programs.
+- Support for per-shader dynamic UBO data updating via simple `VulkanShaderProgram::updateDynamicUboState` interface.
+- Grouped Buffer objects via first-class `VulkanBufferGroup` class.
+- Vertex array state management via first-class `VulkanVertexArray` class.
+- First-class Texture class `VulkanTexture` supporting texture initialization from image bytes (data) or uninitialized for use as a render target.
+- Fast cache-based pipeline creation by mapping POD pipeline state structs to `VulkanPipeline` objects.
+- Async reference-based resource wrapper `VulkanAsyncResourceHandle` faciliated by dedicated resource monitor (create-use-release-and-forget.  Resource monitor checks fences to determine when resources are no longer needed, and then destroys underlying vulkan resources only when safe).  
+- Example context-like `ExampleRenderer` class which demonstrates dynamic pipeline creation, on-the-fly command buffer building, and managing renderer state.
+
 ## Dependencies
 
 You will need to have [SDL2](https://www.libsdl.org/download-2.0.php), [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h), [linearalg](https://github.com/sgorsten/linalg) and the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).  
