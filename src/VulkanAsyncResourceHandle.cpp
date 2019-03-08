@@ -194,11 +194,20 @@ namespace vgl
       return handle;
     }
 
-    VulkanAsyncResourceHandle * VulkanAsyncResourceHandle::newDescriptorPool(VulkanAsyncResourceMonitor * monitor, VkDevice device, VkDescriptorPool pool)
+    VulkanAsyncResourceHandle *VulkanAsyncResourceHandle::newDescriptorPool(VulkanAsyncResourceMonitor * monitor, VkDevice device, VkDescriptorPool pool)
     {
       auto handle = new VulkanAsyncResourceHandle(monitor, DESCRIPTOR_POOL, device);
 
       handle->descriptorPool = pool;
+      handle->alloc = nullptr;
+      return handle;
+    }
+
+    VulkanAsyncResourceHandle *VulkanAsyncResourceHandle::newFunction(VulkanAsyncResourceMonitor *monitor, VkDevice device, std::function<void()> func)
+    {
+      auto handle = new VulkanAsyncResourceHandle(monitor, FUNCTION, device);
+
+      handle->function = new std::function<void()>(func);
       handle->alloc = nullptr;
       return handle;
     }
@@ -242,6 +251,7 @@ namespace vgl
           vkDestroyDescriptorPool(device, descriptorPool, nullptr);
         break;
         case COMMAND_BUFFER:
+        {
 #ifndef VGL_VULKAN_CORE_STANDALONE
           //keep an eye on this performance-wise
           auto dv = device;
@@ -254,6 +264,23 @@ namespace vgl
 #else
           vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 #endif
+        }
+        break;
+        case FUNCTION:
+        {
+#ifndef VGL_VULKAN_CORE_STANDALONE
+          auto f = function;
+          System::system().scheduleTask([f] {
+            (*f)();
+            delete f;
+          });
+#else
+          //if you need this to be called from the main thread, then you'll need to adapt this to whatever scheduling engine you're using here
+          auto f = function;
+          (*f)();
+          delete f;
+#endif
+        }
         break;
       }
 
@@ -332,6 +359,16 @@ namespace vgl
       {
         for(auto &handle : collection.handles) if(handle)
         {
+          //ugh..
+          if(handle->type == VulkanAsyncResourceHandle::FUNCTION)
+          {
+            (*(handle->function))();
+            delete handle->function;
+            delete handle;
+            handle = nullptr;
+            continue;
+          }
+
           if(handle->release())
           {
             delete handle;

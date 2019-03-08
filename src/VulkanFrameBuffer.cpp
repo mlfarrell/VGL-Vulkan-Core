@@ -101,7 +101,7 @@ namespace vgl
           }
           else if(w != dims.width || h != dims.height)
           {
-            throw vgl_runtime_error("Vulkan Framebuffer constructed from color attachments of varying dimensions");
+            throw vgl_runtime_error("Vulkan Framebuffer cannot be constructed from color attachments of varying dimensions");
           }
         }
 
@@ -147,6 +147,8 @@ namespace vgl
     VulkanFrameBuffer::VulkanFrameBuffer(VulkanSwapChain *swapchain, bool clearLoadOp)
       : device(swapchain->getInstance()->getDefaultDevice()), clearLoadOp(clearLoadOp)
     {
+      instance = &VulkanInstance::currentInstance();
+
       auto &swapChainImages = swapchain->getImages();
       imageViews.resize(swapChainImages.size());
 
@@ -213,33 +215,142 @@ namespace vgl
 
     VulkanFrameBuffer::~VulkanFrameBuffer()
     {
-      if(!isSwapChain && !fences.empty() && commandBuffers[0] != VK_NULL_HANDLE)
-      {
-        //For the offscreen Framebuffer case, there's alot here which can be deleted while still in use..
-        //I'm trying out justing wait on a fence instead of using the async resource handle system for all of them
-        vkWaitForFences(device, (uint32_t)fences.size(), fences.data(), VK_TRUE, numeric_limits<uint64_t>::max());
-      }
+      auto renderPass = this->renderPass;
+      auto device = this->device;
+      auto ownCommandPool = this->ownCommandPool;
+      auto framebuffers = move(this->framebuffers);
+      auto imageViews = move(this->imageViews);
+      auto fences = move(this->fences);
+      auto descriptorPools = move(this->descriptorPools);
 
-      if(renderPass)
-        vkDestroyRenderPass(device, renderPass, nullptr);
-      if(ownCommandPool)
-        vkDestroyCommandPool(device, ownCommandPool, nullptr);
+      auto freeFramebufferResources = [renderPass, device, ownCommandPool, framebuffers, imageViews, fences, descriptorPools] {
+        if(renderPass)
+          vkDestroyRenderPass(device, renderPass, nullptr);
+        if(ownCommandPool)
+          vkDestroyCommandPool(device, ownCommandPool, nullptr);
 
-      for(auto framebuffer : framebuffers)
+        for(auto framebuffer : framebuffers)
+        {
+          vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
+        for(auto imageView : imageViews)
+        {
+          vkDestroyImageView(device, imageView, nullptr);
+        }
+        for(auto fence : fences)
+        {
+          vkDestroyFence(device, fence, nullptr);
+        }
+        for(auto pool : descriptorPools)
+        {
+          delete pool;
+        }
+      };
+
+      if(!isSwapChain)
       {
-        vkDestroyFramebuffer(device, framebuffer, nullptr);
+        //wait to free the framebuffer resources until the current frame completes
+        uint64_t frame = instance->getSwapChain()->getCurrentFrameId();
+        auto resourceMonitor = instance->getResourceMonitor();
+        auto functionHandle = VulkanAsyncResourceHandle::newFunction(instance->getResourceMonitor(), device, freeFramebufferResources);
+
+        VulkanAsyncResourceCollection frameResources(resourceMonitor, frame, {
+          functionHandle
+        });
+        resourceMonitor->append(move(frameResources));
+        functionHandle->release();
       }
-      for(auto imageView : imageViews) 
+      else
       {
-        vkDestroyImageView(device, imageView, nullptr);
+        freeFramebufferResources();
       }
-      for(auto fence : fences)
+    }
+
+    void VulkanFrameBuffer::updateAttachments(const std::vector<ColorAttachment>& colorAttachments, VulkanTexture *depthAttachment)
+    {
+      if(isSwapChain)
+        throw vgl_runtime_error("You can't call updateAttachments on a framebuffer that draws to the swapchain");
+      if(numColorAttachments != (int)colorAttachments.size())
+        throw vgl_runtime_error("You can't call updateAttachments with a different number of colorAttachments than the original");
+      if(!this->depthAttachment && depthAttachment)
+        throw vgl_runtime_error("You can't call updateAttachments with a different depth attachment state than the original");
+
+      auto oldFramebuffers = this->framebuffers;
+      auto oldImageViews = this->imageViews;
+      auto device = this->device;
+
+      //wait to free the old framebuffer resources until the current frame completes
+      uint64_t frame = instance->getSwapChain()->getCurrentFrameId();
+      auto resourceMonitor = instance->getResourceMonitor();
+      auto functionHandle = VulkanAsyncResourceHandle::newFunction(instance->getResourceMonitor(), device, [device, oldFramebuffers, oldImageViews] {
+        for(auto framebuffer : oldFramebuffers)
+        {
+          vkDestroyFramebuffer(device, framebuffer, nullptr);
+        }
+        for(auto imageView : oldImageViews)
+        {
+          vkDestroyImageView(device, imageView, nullptr);
+        }
+      });
+      VulkanAsyncResourceCollection frameResources(resourceMonitor, frame, {
+        functionHandle
+      });
+      resourceMonitor->append(move(frameResources));
+      functionHandle->release();
+
+      imageViews.clear();
+      w = h = 0;
+
+      int numBuffers = (int)framebuffers.size();
+
+      for(int i = 0; i < numBuffers; i++)
       {
-        vkDestroyFence(device, fence, nullptr);
-      }
-      for(auto pool : descriptorPools)
-      {
-        delete pool;
+        VkImageView attachments[16];
+        for(int j = 0; j < numColorAttachments; j++)
+        {
+          auto dims = colorAttachments[j].textures[i]->getDimensions();
+          auto tex = colorAttachments[j].textures[i];
+
+          if(colorAttachments[j].baseLayer == 0)
+          {
+            attachments[j] = tex->getImageView();
+          }
+          else
+          {
+            auto newImageView = quickCreateImageView(tex->get(), tex->getFormat(), colorAttachments[j].baseLayer);
+
+            attachments[j] = newImageView;
+            imageViews.push_back(newImageView);
+          }
+
+          if(w == 0 || h == 0)
+          {
+            w = dims.width;
+            h = dims.height;
+          }
+          else if(w != dims.width || h != dims.height)
+          {
+            throw vgl_runtime_error("Vulkan Framebuffer cannot be constructed from color attachments of varying dimensions");
+          }
+        }
+
+        VkFramebufferCreateInfo framebufferInfo = {};
+        framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+        framebufferInfo.renderPass = renderPass;
+        framebufferInfo.attachmentCount = numColorAttachments;
+        framebufferInfo.pAttachments = attachments;
+        framebufferInfo.width = w;
+        framebufferInfo.height = h;
+        framebufferInfo.layers = 1;
+
+        if(depthAttachment)
+        {
+          attachments[numColorAttachments] = depthAttachment->getImageView();
+          framebufferInfo.attachmentCount++;
+        }
+
+        if(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS)
+          throw vgl_runtime_error("Failed to create Vulkan framebuffer!");
       }
     }
 
@@ -420,7 +531,7 @@ namespace vgl
 
       if(swapchain && swapchain->getNumMultiSamples() > 1)
       {
-        //sigh... this is ugly as shit.. need to append actual swapchain image to end when MSAA is enabled
+        //... need to append actual swapchain image to end when MSAA is enabled
         VkAttachmentDescription &colorAttachment = attachments[attachmentPos];
 
         colorAttachment.format = swapchain->getImageFormat();

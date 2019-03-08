@@ -53,6 +53,10 @@ namespace vgl
 
       ~VulkanFrameBuffer();
 
+      ///Recreates the framebuffer by updating its attachments (but keeping old renderpass & identifier).  
+      ///Attachments MUST have the same format & overall renderpass compatability as the original
+      void updateAttachments(const std::vector<ColorAttachment> &colorAttachments, VulkanTexture *depthAttachment=nullptr);
+
       VkCommandBuffer getCommandBuffer(int imageIndex=0);
 
       inline VkFramebuffer get(int imageIndex=0) { return framebuffers[imageIndex]; }

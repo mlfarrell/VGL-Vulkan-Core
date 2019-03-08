@@ -596,20 +596,28 @@ namespace vgl
     {
       auto newRegionIter = allocation.regions.emplace(region, Subregion());
       auto newRegion = &(*newRegionIter);
+      auto freeRegionKey = &(*region);
 
       newRegion->id = subregionIds++;
       newRegion->startPage = region->startPage;
       newRegion->size = sizeInPages;
       newRegion->free = false;
       
-      region->size -= sizeInPages;
-      region->startPage = region->startPage+sizeInPages;
-      if(region->size == 0)
+      if(region->size-sizeInPages == 0)
       {
         //right side is empty, this isn't even a valid region now
         //this allocation is officially filled up
-        allocation.freeRegions.erase(&(*region));
+        allocation.freeRegions.erase(freeRegionKey);
         allocation.regions.erase(region);
+      }
+      else
+      {
+        //we've modified the old region's size, which affects its position within the freeRegions map tree
+        //so we actually have to remove & re-insert it here now
+        allocation.freeRegions.erase(freeRegionKey);
+        region->size -= sizeInPages;
+        region->startPage = region->startPage+sizeInPages;
+        allocation.freeRegions.insert({ freeRegionKey, region });
       }
 
       return newRegionIter;
@@ -714,6 +722,12 @@ namespace vgl
       //any freed subregions less than this id won't be able to use their list iterators
       //(this is why you should calling reclaimMemory often)
       invalidatedSubregionIds = subregionIds;
+    }
+
+    //We use this as an opportunity to keep our free regions list sorted by increasing size
+    bool VulkanMemoryManager::FreeRegionComparator::operator()(const Subregion *a, const Subregion *b) const
+    {
+      return (a->size == b->size) ? (a < b) : (a->size < b->size);
     }
   }
 }

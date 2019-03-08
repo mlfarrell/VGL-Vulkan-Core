@@ -19,6 +19,7 @@ limitations under the License.
 #include <atomic>
 #include <vector>
 #include <mutex>
+#include <functional>
 #include "vulkan.h"
 #include "VulkanMemoryManager.h"
 
@@ -82,6 +83,7 @@ namespace vgl
         VkSampler sampler;
         VkCommandBuffer commandBuffer;
         VkDescriptorPool descriptorPool;
+        std::function<void()> *function;
       };
       union
       {
@@ -93,7 +95,7 @@ namespace vgl
 
       enum Type
       {
-        FENCE, BUFFER, IMAGE, SAMPLER, COMMAND_BUFFER, DESCRIPTOR_POOL
+        FENCE, BUFFER, IMAGE, SAMPLER, COMMAND_BUFFER, DESCRIPTOR_POOL, FUNCTION
       };
 
       VulkanAsyncResourceHandle(VulkanAsyncResourceMonitor *monitor, Type type, VkDevice device);
@@ -104,6 +106,9 @@ namespace vgl
       static VulkanAsyncResourceHandle *newCommandBuffer(VulkanAsyncResourceMonitor *monitor, VkDevice device, VkCommandBuffer commandBuffer, VkCommandPool pool);
       static VulkanAsyncResourceHandle *newFence(VulkanAsyncResourceMonitor *monitor, VkDevice device, VkFence fence);
       static VulkanAsyncResourceHandle *newDescriptorPool(VulkanAsyncResourceMonitor *monitor, VkDevice device, VkDescriptorPool pool);
+
+      ///The nuclear option:  Unlike the others, this one will call the given function on the main thread when the resource is to be freed
+      static VulkanAsyncResourceHandle *newFunction(VulkanAsyncResourceMonitor *monitor, VkDevice device, std::function<void()> function);
 
       void retain();
       bool release();

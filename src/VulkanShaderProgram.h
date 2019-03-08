@@ -31,7 +31,7 @@ namespace vgl
     class VulkanBufferGroup;
     class VulkanPipeline;
     class VulkanFrameBuffer;
-    class VulkanPipelineState;
+    struct VulkanPipelineState;
 
     class VulkanShaderProgram : public SequentialIdentifier
     {

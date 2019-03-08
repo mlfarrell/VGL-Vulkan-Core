@@ -22,9 +22,8 @@ namespace vgl
 {
   namespace core
   {
-    class VulkanPipelineState
+    struct VulkanPipelineState
     {
-    public:
       //This class must have a linear memory layout and thus...
       //All pointers in these vulkan struct members are to be set to nullptr
       VkPipelineViewportStateCreateInfo viewport;

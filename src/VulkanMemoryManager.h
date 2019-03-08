@@ -62,6 +62,11 @@ namespace vgl
         //void destroy();
       };
 
+      struct FreeRegionComparator 
+      {
+        bool operator()(const Subregion *a, const Subregion *b) const;
+      };
+
       struct Allocation
       {
         VkDeviceMemory memory;
@@ -72,7 +77,7 @@ namespace vgl
         AllocationType type;
         bool imageOptimal; //for now, the easiest way to deal with bufferImageGranularity & aliasing
         std::list<Subregion> regions;
-        std::map<Subregion *, std::list<Subregion>::iterator> freeRegions;
+        std::map<Subregion *, std::list<Subregion>::iterator, FreeRegionComparator> freeRegions;
       };
 
     public:

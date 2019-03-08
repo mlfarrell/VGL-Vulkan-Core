@@ -67,8 +67,11 @@ namespace vgl
       enum WrapMode { WM_UNDEFINED = 0, WM_REPEAT, WM_CLAMP, WM_MIRRORED_REPEAT };
       void setWrapMode(WrapMode mode);
 
-      ///Mipmapping has to be enabled BEFORE imageData is called for it to have an effect
+      ///Mipmapping has to be enabled BEFORE imageData() is called for it to have an effect
       void setMipmap(bool enabled, float lodBias=0);
+
+      ///Readback must be enabled before initImage() if readImageData() will be called on this texture
+      void setReadbackEnabled(bool enabled);
 
       void transitionLayout(VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t layerIndex, VkCommandBuffer transferCommandBuffer);
       void transitionLayout(VkImageLayout oldLayout, VkImageLayout newLayout, VkCommandBuffer transferCommandBuffer);
@@ -89,6 +92,9 @@ namespace vgl
       ///If enabled, actuaul GPU texture image will not be created until this texture is used in a render 
       ///(has to be enabled BEFORE imageData is called for it to have an effect)
       void setDeferImageCreation(bool defer);
+
+      ///Explicitly retains the async resource handles this class manages for the given frame id (you should never need to call this)
+      void retainResourcesUntilFrameCompletion(uint64_t frameId);
 
 #ifndef VGL_VULKAN_CORE_STANDALONE
       void bind(int binding);
@@ -117,7 +123,7 @@ namespace vgl
 
       SamplerFilterType minFilter = ST_LINEAR, magFilter = ST_LINEAR;
       VkSamplerCreateInfo samplerState;
-      bool mipmapEnabled = false;
+      bool mipmapEnabled = false, readbackEnabled = false;
       bool samplerDirty = true;
 
       int bufferCount;

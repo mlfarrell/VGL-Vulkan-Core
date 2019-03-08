@@ -39,7 +39,7 @@ namespace vgl
         uboLayoutBinding.binding = vertexOrDynamicUboBinding.binding+i;
         uboLayoutBinding.descriptorType = (!dynamicUbos) ? VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER : VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC;
         uboLayoutBinding.descriptorCount = 1;
-        uboLayoutBinding.stageFlags = (!dynamicUbos) ? (VK_SHADER_STAGE_VERTEX_BIT) : (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
+        uboLayoutBinding.stageFlags = (!dynamicUbos) ? (VK_SHADER_STAGE_VERTEX_BIT) : (VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_GEOMETRY_BIT | VK_SHADER_STAGE_FRAGMENT_BIT);
         bindings.push_back(uboLayoutBinding);
       }
 

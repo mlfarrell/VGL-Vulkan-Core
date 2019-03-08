@@ -60,19 +60,28 @@ namespace vgl
     void VulkanPipeline::create(VkDevice device, const VulkanPipelineState *state, VkRenderPass renderPass, VulkanShaderProgram *shader, 
       VulkanVertexArray *vertexArray, VkPipelineLayout layout, VkPipelineCache pipelineCache)
     {
-      VkPipelineShaderStageCreateInfo vertShaderStageInfo = {};
+      uint32_t numShaderStages = 2;
+      VkPipelineShaderStageCreateInfo shaderStages[3] = {};
+      VkPipelineShaderStageCreateInfo &vertShaderStageInfo = shaderStages[0], &fragShaderStageInfo = shaderStages[1], &geomShaderStageInfo = shaderStages[2];
+
       vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
       vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
       vertShaderStageInfo.module = shader->getVertexShader();
       vertShaderStageInfo.pName = "main";
 
-      VkPipelineShaderStageCreateInfo fragShaderStageInfo = {};
+      if(auto geomShader = shader->getGeometryShader())
+      {
+        geomShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+        geomShaderStageInfo.stage = VK_SHADER_STAGE_GEOMETRY_BIT;
+        geomShaderStageInfo.module = geomShader;
+        geomShaderStageInfo.pName = "main";
+        numShaderStages++;
+      }
+
       fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
       fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
       fragShaderStageInfo.module = shader->getFragmentShader();
       fragShaderStageInfo.pName = "main";
-
-      VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
       VkPipelineVertexInputStateCreateInfo vertexInputInfo = {};
       vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -125,7 +134,7 @@ namespace vgl
 
       VkGraphicsPipelineCreateInfo pipelineInfo = {};
       pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-      pipelineInfo.stageCount = 2;
+      pipelineInfo.stageCount = numShaderStages;
       pipelineInfo.pStages = shaderStages;
       pipelineInfo.pVertexInputState = &vertexInputInfo;
       pipelineInfo.pInputAssemblyState = &inputAssembly;

@@ -25,7 +25,7 @@ namespace vgl
     class VulkanShaderProgram;
     class VulkanVertexArray;
     class VulkanDescriptorSetLayout;
-    class VulkanPipelineState;
+    struct VulkanPipelineState;
 
     class VulkanPipeline
     {

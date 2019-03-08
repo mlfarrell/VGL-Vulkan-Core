@@ -146,6 +146,13 @@ namespace vgl
       if(vkCreateShaderModule(device, &createInfo, nullptr, target) != VK_SUCCESS)
         return false;
 
+      //this invalidates the shader pipeline cache
+      if(pipelineStateCache)
+      {
+        delete pipelineStateCache;
+        pipelineStateCache = nullptr;
+      }
+
       return true;
     }
 
