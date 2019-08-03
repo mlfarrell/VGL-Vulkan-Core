@@ -30,6 +30,9 @@ limitations under the License.
 #ifndef VGL_VULKAN_CORE_STANDALONE
 #include "FileManager.h"
 #endif
+#ifdef VGLPP_VR
+#include <openvr.h>
+#endif
 
 //#define FORCE_VALIDATION 1
 
@@ -40,6 +43,7 @@ namespace vgl
   namespace core
   {
     static VulkanInstance *currentVulkanInstance = nullptr;
+    static bool validationReportingEnabled = true;
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT objType, uint64_t obj, size_t location, int32_t code, const char *layerPrefix, const char *msg, void *userData);
 
@@ -50,12 +54,13 @@ namespace vgl
 
     VulkanInstance::VulkanInstance()
     {
-#if (defined DEBUG || defined FORCE_VALIDATION) && (!defined MACOSX) //validation doesn't work on apple yet
+#if (defined DEBUG || defined FORCE_VALIDATION) && (!defined MACOSX) && (!defined TARGET_OS_IPHONE)//validation doesn't work on apple yet
       validationEnabled = true;
 
       validationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
       validationLayers.push_back("VK_LAYER_LUNARG_parameter_validation");
       validationLayers.push_back("VK_LAYER_LUNARG_object_tracker");
+      validationLayers.push_back("VK_LAYER_LUNARG_monitor");
 #endif
 
       if(validationEnabled && !checkValidationLayers()) 
@@ -80,6 +85,36 @@ namespace vgl
       //append optional extensions
       if(validationEnabled)
         instanceExtensions.push_back(VK_EXT_DEBUG_REPORT_EXTENSION_NAME);
+
+#ifdef VGLPP_VR
+      vector<string> vrInstanceExtensions;
+      if(auto steamVrCompositor = vr::VRCompositor())
+      {
+        uint32_t vrExtSize = steamVrCompositor->GetVulkanInstanceExtensionsRequired(nullptr, 0);
+        if(vrExtSize)
+        {
+          char *vrExt = (char *)malloc(vrExtSize);
+
+          steamVrCompositor->GetVulkanInstanceExtensionsRequired(vrExt, vrExtSize);
+          istringstream istr(vrExt);
+
+          while(istr.good())
+          {
+            string ext;
+            istr >> ext;
+
+            if(istr.good() || istr.eof())
+            {
+              vrInstanceExtensions.push_back(ext);
+              instanceExtensions.push_back(vrInstanceExtensions.back().c_str());
+            }
+          }
+
+          free(vrExt);
+        }
+      }
+#endif
+
       copy(requiredInstanceExtensions.begin(), requiredInstanceExtensions.end(), back_inserter(instanceExtensions));
 
       createInfo.enabledExtensionCount = (uint32_t)instanceExtensions.size();
@@ -155,8 +190,16 @@ namespace vgl
       vector<VkPhysicalDevice> devices(deviceCount);
       vkEnumeratePhysicalDevices(instance, &deviceCount, devices.data());
 
-      auto rateDevice = [=](VkPhysicalDevice device)->int {
+      struct PhysicalDevice
+      {
+        VkPhysicalDevice device;
+        vector<string> extraExtensions;
+      };
+
+      auto rateDevice = [=](PhysicalDevice &deviceStruct)->int {
         int score = 0;
+        VkPhysicalDevice device = deviceStruct.device;
+        auto &extraExtensions = deviceStruct.extraExtensions;
 
         VkPhysicalDeviceProperties deviceProperties;
         VkPhysicalDeviceFeatures deviceFeatures;
@@ -182,7 +225,45 @@ namespace vgl
         vector<VkExtensionProperties> availableExtensions(extensionCount);
         vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
+#ifdef VGLPP_VR
+        auto getVrDeviceExtensions = [this, &extraExtensions](VkPhysicalDevice device) {
+
+          extraExtensions.clear();
+
+          if(auto steamVrCompositor = vr::VRCompositor())
+          {
+            uint32_t vrExtSize = steamVrCompositor->GetVulkanDeviceExtensionsRequired(device, nullptr, 0);
+            if(vrExtSize)
+            {
+              char *vrExt = (char *)malloc(vrExtSize);
+
+              steamVrCompositor->GetVulkanDeviceExtensionsRequired(device, vrExt, vrExtSize);
+              istringstream istr(vrExt);
+
+              while(istr.good())
+              {
+                string ext;
+                istr >> ext;
+
+                if(istr.good() || istr.eof())
+                {
+                  extraExtensions.push_back(ext);
+                }
+              }
+
+              free(vrExt);
+            }
+          }
+        };
+
+        auto requiredExtensionsCopy = requiredDeviceExtensions;
+        getVrDeviceExtensions(device);
+#endif
+
         set<string> requiredExtensions(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end());
+        if(!extraExtensions.empty())
+          copy(extraExtensions.begin(), extraExtensions.end(), inserter(requiredExtensions, requiredExtensions.begin()));
+
         for(const auto &extension : availableExtensions) 
         {
           requiredExtensions.erase(extension.extensionName);
@@ -194,16 +275,25 @@ namespace vgl
         return score;
       };
 
-      multimap<int, VkPhysicalDevice> candidates;
+      multimap<int, PhysicalDevice> candidates;
       for(const auto &device : devices)
       {
-        int score = rateDevice(device);
-        candidates.insert({ score, device });
+        PhysicalDevice physDev = { device, vector<string>{} };
+        int score = rateDevice(physDev);
+        candidates.insert({ score, physDev });
       }
 
       if(candidates.rbegin()->first > 0)
       {
-        physicalDevice = candidates.rbegin()->second;
+        auto &extraExtensions = candidates.rbegin()->second.extraExtensions;
+        if(!extraExtensions.empty())
+        {
+          //for(auto &ext : extraExtensions) //bug in msvc???
+          for(size_t i = 0; i < extraExtensions.size(); i++)
+            requiredDeviceExtensions.push_back(extraExtensions[i].c_str());
+        }
+
+        physicalDevice = candidates.rbegin()->second.device;
         graphicsQueueFamily = findQueueFamilies(physicalDevice);
         setupLogicalDevice();
 
@@ -504,6 +594,11 @@ namespace vgl
       return string(physicalDeviceProperties.deviceName);
     }
 
+    void VulkanInstance::enableValidationReports(bool b)
+    {
+      validationReportingEnabled = b;
+    }
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
       VkDebugReportFlagsEXT flags,
       VkDebugReportObjectTypeEXT objType,
@@ -514,6 +609,9 @@ namespace vgl
       const char *msg,
       void *userData)
     {
+      if(!validationReportingEnabled)
+        return false;
+
       ostringstream logerr;
 
       if(flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)

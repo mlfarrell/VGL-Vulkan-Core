@@ -98,8 +98,8 @@ namespace vgl
         Suballocation() = default;
         Suballocation(nullptr_t null) : memory(VK_NULL_HANDLE) {}
         void operator =(nullptr_t null) { memory = VK_NULL_HANDLE; }
-        operator bool() const { return (memory != nullptr); }
-        bool operator !() const { return (memory == nullptr); }
+        operator bool() const { return (memory != VK_NULL_HANDLE); }
+        bool operator !() const { return (memory == VK_NULL_HANDLE); }
       };
 
       Suballocation allocate(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment=0, bool imageOptimal=false, uint64_t allocationId=Any);

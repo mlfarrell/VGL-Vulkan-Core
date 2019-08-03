@@ -130,6 +130,7 @@ namespace vgl
       //These are only utilized if introspectionEnabledGLSL is set to true
       bool introspectionEnabledGLSL = false;
       std::string vertexShaderAssembly, fragmentShaderAsssembly, geometryShaderAssembly;
+      std::vector<uint32_t> vertexShaderBin, fragmentShaderBin, geometryShaderBin;
       std::vector<UniformBufferMemberInfo> currentUniformMemberInfos;
       void *uniformHostBufferPtr = nullptr;
 
@@ -137,6 +138,7 @@ namespace vgl
 
       VulkanBufferGroup *dynamicUbos = nullptr;
       VkDeviceSize minUniformBufferOffsetAlignment = 0;
+      VkDeviceSize maxUniformBufferRange = 0;
       VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 
       struct DynamicUboState

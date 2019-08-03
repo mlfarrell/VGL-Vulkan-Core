@@ -20,7 +20,6 @@ limitations under the License.
 #include "VulkanVertexArray.h"
 #include "VulkanMemoryManager.h"
 #ifndef VGL_VULKAN_CORE_STANDALONE
-#include "System.h"
 #include "StateMachine.h"
 #endif
 
@@ -66,7 +65,7 @@ namespace vgl
       VkDeviceSize offsets[MaxBindings] = { 0 };
 
 #ifndef VGL_VULKAN_CORE_STANDALONE
-      const auto &csm = vgl::StateMachine::machine().getCoreStateMachine();
+      auto csm = static_cast<vgl::CoreStateMachine *>(VulkanInstance::currentInstance().getParentRenderer());
 
       if(bindingsDirty)
       {

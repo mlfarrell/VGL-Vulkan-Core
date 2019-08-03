@@ -17,6 +17,7 @@ limitations under the License.
 
 #include "pch.h"
 #include <iostream>
+#include <set>
 #include <algorithm>
 #include "VulkanInstance.h"
 #include "VulkanTexture.h"
@@ -24,7 +25,6 @@ limitations under the License.
 #include "VulkanAsyncResourceHandle.h"
 #include "VulkanFrameBuffer.h"
 #ifndef VGL_VULKAN_CORE_STANDALONE
-#include "System.h"
 #include "StateMachine.h"
 #endif
 
@@ -88,6 +88,7 @@ namespace vgl
         delete stagingBufferHandle;
       if(samplerHandle && samplerHandle->release())
         delete samplerHandle;
+      safeUnbind();
     }
 
     VkImage VulkanTexture::get()
@@ -97,39 +98,47 @@ namespace vgl
 
     void VulkanTexture::putDescriptor(VkDescriptorSet set, uint32_t binding, uint32_t arrayElement)
     {
+      VkWriteDescriptorSet write = {};
+      VkDescriptorImageInfo imageInfo = {};
+
+      putDescriptor(write, imageInfo, set, binding, arrayElement);
+      vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+    }
+    
+    void VulkanTexture::putDescriptor(VkWriteDescriptorSet &write, VkDescriptorImageInfo &imageInfo, VkDescriptorSet set, uint32_t binding, uint32_t arrayElement)
+    {
       if(deferImageCreation && !imageHandle)
       {
         createImage();
         for(int i = 0; i < numArrayLayers; i++)
-          copyToImage(i, instance->getTransferCommandBuffer().first);
-
+          copyToImage(i, 0, instance->getTransferCommandBuffer().first);
+        
         createImageView();
         createSampler();
-
+        
         imageHandle = VulkanAsyncResourceHandle::newImage(instance->getResourceMonitor(), device, image, imageView, imageAllocation);
       }
-
+      
       //sampler out of date?
       if(samplerDirty)
       {
         createSampler();
       }
-
-      VkWriteDescriptorSet write = {};
-      VkDescriptorImageInfo imageInfo = {};
+      
       imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
       imageInfo.imageView = imageView;
       imageInfo.sampler = sampler;
-
+      
       write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
       write.dstSet = set;
       write.dstBinding = binding;
       write.dstArrayElement = arrayElement;
       write.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
       write.descriptorCount = 1;
-
       write.pImageInfo = &imageInfo;
-      vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+      write.pNext = nullptr;
+      write.pBufferInfo = nullptr;
+      write.pTexelBufferView = nullptr;
     }
 
     /*void VulkanTexture::copyDescriptor(VkDescriptorSet srcSet, VkDescriptorSet dstSet, uint32_t srcBinding, uint32_t dstBinding)
@@ -155,14 +164,14 @@ namespace vgl
       return (VkSampleCountFlagBits)numSamples;
     }
 
-    void VulkanTexture::imageData(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, const void *data, size_t numBytes, uint32_t layerIndex, uint32_t numSamples, VkCommandBuffer transferCommandBuffer)
+    void VulkanTexture::imageData(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, const void *data, size_t numBytes, uint32_t layerIndex, uint32_t level, uint32_t numSamples, VkCommandBuffer transferCommandBuffer)
     {
       bool shouldReinit = false, newImage = false;
 
       if(stagingBuffer)
       {
         if(type == TT_CUBE_MAP)
-          shouldReinit = (this->width != width || this->height != height || this->format != format);
+          shouldReinit = (this->width != width || this->height != height || this->format != format || (mipmapEnabled && numMipLevels == 1) || (!mipmapEnabled && numMipLevels != 1));
         else
           shouldReinit = true;
       }
@@ -184,6 +193,7 @@ namespace vgl
         if(imageHandle->release())
           delete imageHandle;
         imageHandle = nullptr;
+        safeUnbind();
       }
 
       if(type != TT_CUBE_MAP)
@@ -242,7 +252,7 @@ namespace vgl
           imageHandle = VulkanAsyncResourceHandle::newImage(instance->getResourceMonitor(), device, image, imageView, imageAllocation);
         }
 
-        copyToImage(layerIndex, transferCommandBuffer);
+        copyToImage(layerIndex, level, transferCommandBuffer);
       }
     }
 
@@ -275,6 +285,7 @@ namespace vgl
             delete imageHandle;
             imageHandle = nullptr;
           }
+          safeUnbind();
         }
       }
       else if(imageHandle)
@@ -339,6 +350,24 @@ namespace vgl
       imageInfo.samples = samplesToSampleCountBits(numSamples);
       imageInfo.mipLevels = 1;
 
+      if(numSamples > 1)
+      {
+        //I can cache these if it becomes an issue (this routine with msaa is rarely called)
+        auto physicalDevice = instance->getPhysicalDevice();
+        VkImageFormatProperties formatProps;
+
+        if(vkGetPhysicalDeviceImageFormatProperties(physicalDevice, format, imageInfo.imageType, imageInfo.tiling, imageInfo.usage, imageInfo.flags, &formatProps) == VK_SUCCESS)
+        {
+          while(numSamples > 1 && (formatProps.sampleCounts & imageInfo.samples) == 0)
+          {
+            numSamples /= 2;
+            imageInfo.samples = samplesToSampleCountBits(numSamples);
+          }
+        }
+
+        this->numMultiSamples = (int)samplesToSampleCountBits(numSamples);
+      }
+
       if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
         throw std::runtime_error("Failed to create Vulkan image!");
 
@@ -385,7 +414,7 @@ namespace vgl
       imageHandle = VulkanAsyncResourceHandle::newImage(instance->getResourceMonitor(), device, image, imageView, imageAllocation);
     }
 
-    void VulkanTexture::readImageData(uint32_t x, uint32_t y, uint32_t readWidth, uint32_t readHeight, uint32_t layer, void *data)
+    void VulkanTexture::readImageData(uint32_t x, uint32_t y, uint32_t readWidth, uint32_t readHeight, uint32_t layer, uint32_t level, void *data)
     {
       //TODO: use blitting in here to speed this up!
 
@@ -408,7 +437,7 @@ namespace vgl
         break;
       }
 
-      copyFromImage(x, y, readWidth, readHeight, layer, VK_NULL_HANDLE, true);
+      copyFromImage(x, y, readWidth, readHeight, layer, level, VK_NULL_HANDLE, true);
 
       void *mappedPtr;
       if(vkMapMemory(device, stagingBufferAllocation.memory, stagingBufferAllocation.offset + size*layer, linearCopySize, 0, &mappedPtr) != VK_SUCCESS)
@@ -451,6 +480,8 @@ namespace vgl
       samplerDirty = true;
       if(mipmapEnabled)
         setMipmap(true, samplerState.mipLodBias);
+      else
+        setMipmap(false, samplerState.mipLodBias);
     }
 
     void VulkanTexture::setAnisotropicFiltering(bool enabled, int maxSamples)
@@ -486,9 +517,10 @@ namespace vgl
 
     void VulkanTexture::setMipmap(bool enabled, float lodBias)
     {
+      mipmapEnabled = enabled;
+
       if(enabled)
       {
-        mipmapEnabled = enabled;
         samplerState.mipmapMode = (minFilter == ST_LINEAR_MIPMAP_LINEAR) ? VK_SAMPLER_MIPMAP_MODE_LINEAR : VK_SAMPLER_MIPMAP_MODE_NEAREST;
         samplerState.mipLodBias = lodBias;
         samplerState.minLod = 0;
@@ -844,6 +876,51 @@ namespace vgl
       vkBindBufferMemory(device, stagingBuffer, alloc.memory, alloc.offset);
       stagingBufferHandle = VulkanAsyncResourceHandle::newBuffer(instance->getResourceMonitor(), device, stagingBuffer, alloc);
     }
+    
+    static bool isCompressedTextureFormat(VkFormat format)
+    {
+      switch(format)
+      {
+        case VK_FORMAT_ETC2_R8G8B8_UNORM_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A1_UNORM_BLOCK:
+        case VK_FORMAT_ETC2_R8G8B8A8_UNORM_BLOCK:
+        case VK_FORMAT_PVRTC1_4BPP_UNORM_BLOCK_IMG:
+        case VK_FORMAT_PVRTC1_2BPP_UNORM_BLOCK_IMG:
+        case VK_FORMAT_ASTC_4x4_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_5x4_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_5x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_6x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_6x6_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_8x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_8x6_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_8x8_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x5_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x6_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x8_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_10x10_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_12x10_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_12x12_UNORM_BLOCK:
+        case VK_FORMAT_ASTC_4x4_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_5x4_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_5x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_6x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_6x6_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_8x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_8x6_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_8x8_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x5_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x6_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x8_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_10x10_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_12x10_SRGB_BLOCK:
+        case VK_FORMAT_ASTC_12x12_SRGB_BLOCK:
+          return true;
+        default:
+          return false;
+      }
+      
+      return false;
+    }
 
     void VulkanTexture::createImage()
     {
@@ -878,7 +955,7 @@ namespace vgl
       if(type == TT_CUBE_MAP)
         imageInfo.flags = VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT;
 
-      if(mipmapEnabled || readbackEnabled)
+      if((mipmapEnabled && !isCompressedTextureFormat(format) && autoGenerateMipmaps) || readbackEnabled)
         imageInfo.usage |= VK_IMAGE_USAGE_TRANSFER_SRC_BIT;
 
       if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
@@ -945,8 +1022,19 @@ namespace vgl
     {
       if(!samplerHandle || samplerDirty)
       {
-        if(samplerHandle && samplerHandle->release())
-          delete samplerHandle;
+        if(samplerHandle)
+        {
+          //async-releasing old sampler handle to be safe
+          auto resourceMonitor = instance->getResourceMonitor();
+          auto handles = vector<VulkanAsyncResourceHandle *> { samplerHandle };
+          uint64_t frameId = instance->getSwapChain()->getCurrentFrameId();
+
+          VulkanAsyncResourceCollection frameResources(resourceMonitor, frameId, handles);
+          resourceMonitor->append(move(frameResources));
+
+          samplerHandle->release();
+        }
+
         samplerState.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
         samplerState.magFilter = (minFilter == ST_NEAREST) ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
         samplerState.minFilter = (magFilter == ST_NEAREST) ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
@@ -964,7 +1052,7 @@ namespace vgl
       }
     }
 
-    void VulkanTexture::copyToImage(uint32_t layerIndex, VkCommandBuffer transferCommandBuffer)
+    void VulkanTexture::copyToImage(uint32_t layerIndex, uint32_t level, VkCommandBuffer transferCommandBuffer)
     {
       auto copyCommandBuffer = transferCommandBuffer;
 
@@ -982,7 +1070,7 @@ namespace vgl
       region.bufferImageHeight = 0;
 
       region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      region.imageSubresource.mipLevel = 0;
+      region.imageSubresource.mipLevel = level;
       region.imageSubresource.baseArrayLayer = layerIndex;
       region.imageSubresource.layerCount = 1;
 
@@ -991,7 +1079,7 @@ namespace vgl
 
       transitionLayout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, layerIndex, copyCommandBuffer);
       vkCmdCopyBufferToImage(copyCommandBuffer, stagingBuffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-      if(!mipmapEnabled)
+      if(!mipmapEnabled || !autoGenerateMipmaps || isCompressedTextureFormat(format))
       {
         transitionLayout(VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, layerIndex, copyCommandBuffer);
       }
@@ -1010,7 +1098,7 @@ namespace vgl
         bool frame = false;
 
 #ifndef VGL_VULKAN_CORE_STANDALONE
-        auto csm = System::system().systemStateMachine()->getCoreStateMachine();
+        auto csm = static_cast<vgl::CoreStateMachine *>(instance->getParentRenderer());
 
         if(csm->isInsideFrame())
           frame = true;
@@ -1039,7 +1127,7 @@ namespace vgl
       }
     }
 
-    void VulkanTexture::copyFromImage(uint32_t x, uint32_t y, uint32_t copyWidth, uint32_t copyHeight, uint32_t layerIndex, VkCommandBuffer transferCommandBuffer, bool wait)
+    void VulkanTexture::copyFromImage(uint32_t x, uint32_t y, uint32_t copyWidth, uint32_t copyHeight, uint32_t layerIndex, uint32_t level, VkCommandBuffer transferCommandBuffer, bool wait)
     {
       auto copyCommandBuffer = transferCommandBuffer;
 
@@ -1064,7 +1152,7 @@ namespace vgl
       region.bufferImageHeight = 0;
 
       region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-      region.imageSubresource.mipLevel = 0;
+      region.imageSubresource.mipLevel = level;
       region.imageSubresource.baseArrayLayer = layerIndex;
       region.imageSubresource.layerCount = 1;
 
@@ -1094,7 +1182,7 @@ namespace vgl
         bool frame = false;
 
 #ifndef VGL_VULKAN_CORE_STANDALONE
-        auto csm = System::system().systemStateMachine()->getCoreStateMachine();
+        auto csm = static_cast<vgl::CoreStateMachine *>(instance->getParentRenderer());
 
         if(csm->isInsideFrame())
           frame = true;
@@ -1141,12 +1229,25 @@ namespace vgl
 #ifndef VGL_VULKAN_CORE_STANDALONE
     void VulkanTexture::bind(int binding)
     {
-      auto csm = System::system().systemStateMachine()->getCoreStateMachine();
+      auto csm = static_cast<vgl::CoreStateMachine *>(instance->getParentRenderer());
 
       if(type != TT_CUBE_MAP)
         csm->setTextureBinding2D(this, binding);
       else
         csm->setCubemapBinding(this, binding);
+    }
+
+    void VulkanTexture::safeUnbind()
+    {
+      if(auto csm = static_cast<vgl::CoreStateMachine *>(instance->getParentRenderer()))
+      {
+        csm->unsetTextureBinding(this);
+      }
+    }
+#else
+    void VulkanTexture::safeUnbind(int binding)
+    {
+      //route this to your renderer if you persist texture bindings in your descriptor sets
     }
 #endif
   }

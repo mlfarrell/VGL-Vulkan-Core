@@ -281,7 +281,7 @@ namespace vgl
               {
                 //this entire allocation is freed now
                 vkFreeMemory(device, allocation.memory, nullptr);
-                allocation.memory = nullptr;
+                allocation.memory = VK_NULL_HANDLE;
               }
             }
           }
@@ -309,7 +309,7 @@ namespace vgl
             if(alloc->suballocationCount == 0)
             {
               vkFreeMemory(device, alloc->memory, nullptr);
-              alloc->memory = nullptr;
+              alloc->memory = VK_NULL_HANDLE;
             }
           }
         }
@@ -357,7 +357,7 @@ namespace vgl
       if(memoryType != NO_MEMORY_TYPE)
         return allocateDedicated(memoryType, requiredSize, allowSuballocation, imageOptimal);
 
-      return { nullptr, 0 };
+      return { VK_NULL_HANDLE, 0 };
     }
 
     bool VulkanMemoryManager::isAllocationCoherent(const Suballocation &suballocation)
@@ -411,7 +411,7 @@ namespace vgl
 
     pair<VkDeviceMemory, uint64_t> VulkanMemoryManager::allocateDedicated(uint32_t memoryType, VkDeviceSize requiredSize, bool allowSuballocation, bool imageOptimal)
     {
-      pair<VkDeviceMemory, uint64_t> result = { nullptr, 0 };
+      pair<VkDeviceMemory, uint64_t> result = { VK_NULL_HANDLE, 0 };
       VkMemoryAllocateInfo allocInfo = {};
       allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
       allocInfo.allocationSize = requiredSize;
@@ -454,7 +454,7 @@ namespace vgl
         throw vgl_runtime_error("Unknown allocation type requested in VulkanMemoryManager::makeNewAllocation()");
 
       VkDeviceSize size = allocSizeBoundaries[1][(int)type];
-      VkDeviceMemory result = nullptr;
+      VkDeviceMemory result = VK_NULL_HANDLE;
       VkMemoryAllocateInfo allocInfo = {};
       allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
       allocInfo.allocationSize = size;
@@ -467,7 +467,7 @@ namespace vgl
 
       if(vkAllocateMemory(device, &allocInfo, nullptr, &result) != VK_SUCCESS)
       {
-        return nullptr;
+        return VK_NULL_HANDLE;
       }
       else
       {
@@ -651,7 +651,7 @@ namespace vgl
       for(uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++)
       {
         auto &v = allocations[i];
-        v.erase(remove_if(v.begin(), v.end(), [](const Allocation *a) { return (a->memory == nullptr); }), v.end());
+        v.erase(remove_if(v.begin(), v.end(), [](const Allocation *a) { return (a->memory == VK_NULL_HANDLE); }), v.end());
 
         allocationsMap[i].clear();
         for(size_t j = 0; j < allocations[i].size(); j++)

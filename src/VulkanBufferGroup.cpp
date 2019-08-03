@@ -90,20 +90,31 @@ namespace vgl
     }
 
     void VulkanBufferGroup::putDescriptor(int bufferIndex, VkDescriptorSet set, uint32_t binding, VkDeviceSize offset,
-      VkDeviceSize range, uint32_t arrayElement)
+                                          VkDeviceSize range, uint32_t arrayElement)
     {
       VkWriteDescriptorSet write = {};
       VkDescriptorBufferInfo bufferInfo = {};
 
+      putDescriptor(write, bufferInfo, bufferIndex, set, binding, offset, range, arrayElement);
+      vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
+    }
+    
+    void VulkanBufferGroup::putDescriptor(VkWriteDescriptorSet &write, VkDescriptorBufferInfo &bufferInfo, int bufferIndex,
+                                          VkDescriptorSet set, uint32_t binding, VkDeviceSize offset, VkDeviceSize range,
+                                          uint32_t arrayElement)
+    {
       bufferInfo.buffer = get(bufferIndex);
       bufferInfo.offset = 0;
       bufferInfo.range = range;
-
+      
       write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
       write.dstSet = set;
       write.dstBinding = binding;
       write.dstArrayElement = arrayElement;
-
+      write.pNext = nullptr;
+      write.pImageInfo = nullptr;
+      write.pTexelBufferView = nullptr;
+      
       switch(usageType)
       {
         case UT_UNIFORM: write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; break;
@@ -111,9 +122,8 @@ namespace vgl
         default:  break;
       }
       write.descriptorCount = 1;
-
+      
       write.pBufferInfo = &bufferInfo;
-      vkUpdateDescriptorSets(device, 1, &write, 0, nullptr);
     }
 
     void VulkanBufferGroup::data(int bufferIndex, const void *data, size_t numBytes, VkCommandBuffer transferCommandBuffer, bool frame)
@@ -132,13 +142,13 @@ namespace vgl
       {
         if(buffers[bufferIndex].bufferHandle->release())
           delete buffers[bufferIndex].bufferHandle;
-        buffers[bufferIndex].buffer = nullptr;
+        buffers[bufferIndex].buffer = VK_NULL_HANDLE;
       }
       if(buffers[bufferIndex].stagingBuffer)
       {
         if(buffers[bufferIndex].stagingBufferHandle->release())
           delete buffers[bufferIndex].stagingBufferHandle;
-        buffers[bufferIndex].stagingBuffer = nullptr;
+        buffers[bufferIndex].stagingBuffer = VK_NULL_HANDLE;
       }
 
       auto setFinalBufferUsage = [=](VkBufferCreateInfo &bufferInfo) {

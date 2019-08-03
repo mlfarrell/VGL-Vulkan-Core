@@ -71,19 +71,23 @@ namespace vgl
       void setClearColorValue(VkClearColorValue color);
       inline VkClearColorValue getClearColorValue() { return clearColorValue; }
 
+      inline void setShouldInvertViewport(bool invert) { invertViewport = invert; }
+      inline bool shouldInvertViewport() { return invertViewport; }
+
     protected:
       void createRenderPass(VulkanSwapChain *swapchain);
       VkImageView quickCreateImageView(VkImage image, VkFormat format, uint32_t baseLayer=0);
 
       VulkanInstance *instance;
       VkDevice device;
-      VkRenderPass renderPass = nullptr;
-      VkCommandPool commandPool = nullptr, ownCommandPool = nullptr;
+      VkRenderPass renderPass = VK_NULL_HANDLE;
+      VkCommandPool commandPool = VK_NULL_HANDLE, ownCommandPool = VK_NULL_HANDLE;
       uint32_t graphicsQueueFamily = -1;
       std::vector<VkImageView> imageViews; //only used if FBO can't grab it from attached texture
       std::vector<VkFramebuffer> framebuffers;
       std::vector<VkCommandBuffer> commandBuffers;
       bool isSwapChain = false;
+      bool invertViewport = false;
 
       //note that when constructed with swapchain, the swapchain fences will be used in place of these
       std::vector<VkFence> fences;

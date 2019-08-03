@@ -64,7 +64,10 @@ namespace vgl
       ///When using this buffer as a shader resource, it must be included in a descriptor set
       void putDescriptor(int bufferIndex, VkDescriptorSet set, uint32_t binding, VkDeviceSize offset=0, 
         VkDeviceSize range=VK_WHOLE_SIZE, uint32_t arrayElement=0);
-
+      void putDescriptor(VkWriteDescriptorSet &write, VkDescriptorBufferInfo &bufferInfo, int bufferIndex,
+                         VkDescriptorSet set, uint32_t binding, VkDeviceSize offset=0, VkDeviceSize range=VK_WHOLE_SIZE,
+                         uint32_t arrayElement=0);
+      
       ///Supplies data to a buffer via first mapping to staging buffer, then copying to device.  
       ///Pass a non-null command buffer to use it (instead of creating one from command pool) to transfer.  
       ///Pass frame=true to attach resources to the current framebuffer/swapchain frame

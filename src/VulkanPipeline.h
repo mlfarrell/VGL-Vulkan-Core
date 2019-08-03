@@ -46,8 +46,8 @@ namespace vgl
         VulkanShaderProgram *shader, VulkanVertexArray *vertexArray, VkPipelineLayout layout, VkPipelineCache pipelineCache);
 
       VkDevice device;
-      VkPipeline pipeline = nullptr;
-      VkPipelineLayout pipelineLayout = nullptr;
+      VkPipeline pipeline = VK_NULL_HANDLE;
+      VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
     };
 
     typedef VulkanPipeline Pipeline;

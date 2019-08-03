@@ -75,7 +75,15 @@ namespace vgl
 
       std::string getDeviceDescription();
 
+      ///Use this if you need a reference back to the owning engine renderer class from the instance
+      inline void setParentRenderer(void *renderer) { parentRenderer = renderer; }
+      inline void *getParentRenderer() { return parentRenderer; }
+
+      ///Useful for temporarily getting around bugs in vulkan validation layers (I use breakpoints to debug these)
+      static void enableValidationReports(bool b);
+
     protected:
+      void *parentRenderer = nullptr;
       VkInstance instance;
       VkDevice device;
       VkPhysicalDevice physicalDevice;
@@ -107,7 +115,7 @@ namespace vgl
       std::vector<const char *> validationLayers;
       std::vector<const char *> instanceExtensions;
       std::vector<const char *> requiredInstanceExtensions, requiredDeviceExtensions;
-      VkDebugReportCallbackEXT msgCallback = nullptr;
+      VkDebugReportCallbackEXT msgCallback = NULL;
 
       bool validationEnabled = false;
     };
