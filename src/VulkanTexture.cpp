@@ -1245,7 +1245,7 @@ namespace vgl
       }
     }
 #else
-    void VulkanTexture::safeUnbind(int binding)
+    void VulkanTexture::safeUnbind()
     {
       //route this to your renderer if you persist texture bindings in your descriptor sets
     }
