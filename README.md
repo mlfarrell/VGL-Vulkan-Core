@@ -32,6 +32,8 @@ To get an idea of how this core can be used to replace an OpenGL 3.x engine, see
 You will need to have [SDL2](https://www.libsdl.org/download-2.0.php), [stb_image](https://github.com/nothings/stb/blob/master/stb_image.h), [linearalg](https://github.com/sgorsten/linalg) and the [Vulkan SDK](https://www.lunarg.com/vulkan-sdk/).  
 At the time of this release, the vesions I'm using are SDL2 2.0.9, stb_image 2.19, linearalg 2.1, and LunarG 1.1.73.0
 
+Optionally, if you want to use fast (and not terrible) shader reflection, you'll want to have SPIRV-cross and enable the VGL_VULKAN_USE_SPIRV_CROSS preprocessor flag.
+
 Inside LunarG contains shaderc, which must be built as a shared DLL on windows.  Because that is a giant pain in the ass, I've included the interface lib and DLL for shaderc in this project.
 
 ## How to build example program
@@ -60,9 +62,7 @@ Then, open the Example.xcode Project and build.
 
 - Swapchain resizing-recreation isn't handled correctly yet.  
 
-- The project as it stands, could use a much better solution for parsing SPIRV assembly and running old-school GLSL (version 150) code on the core.  Both solutions involve a regex parsing solution that I'm not too crazy about.  The SPIRV assembly regex parser needed to perform shader introspection is decent enough, but I'm sure a better solution exists.  
-
-- Related to this:  The core currently lacks the ability to compile GLSL 150 and auto-conver to vulkan-enabled GLSL 450.  Currently my higher-level engine implements this (on top of this core) using tons of regex which is a giant hack.  I'd like to have a more graceful solution to this.
+- The core currently lacks the ability to compile GLSL 150 and auto-convert to vulkan-enabled GLSL 450.  Currently my higher-level engine implements this (on top of this core) using tons of regex which is a giant hack.  I'd like to have a more graceful solution to this.
 
 - Rendering performant OpenGL-style thick lines WITHOUT using a geometry shader would be a nice addition.
 
