@@ -59,9 +59,8 @@ namespace vgl
       return imageView;
     }
 
-    VulkanFrameBuffer::VulkanFrameBuffer(VkDevice device, int numBuffers, const vector<ColorAttachment> &colorAttachments, 
-      VulkanTexture *depthAttachment, bool clearLoadOp)
-      : device(device), colorAttachments(colorAttachments), depthAttachment(depthAttachment), clearLoadOp(clearLoadOp)
+    VulkanFrameBuffer::VulkanFrameBuffer(VkDevice device, int numBuffers, const vector<ColorAttachment> &colorAttachments, VulkanTexture *depthAttachment, bool clearLoadOp, bool storeDepth)
+      : device(device), colorAttachments(colorAttachments), depthAttachment(depthAttachment), clearLoadOp(clearLoadOp), storeDepth(storeDepth)
     {
       instance = &VulkanInstance::currentInstance();
       if(device == VK_NULL_HANDLE)
@@ -105,6 +104,13 @@ namespace vgl
           }
         }
 
+        if((w == 0 || h == 0) && depthAttachment)
+        {
+          auto dims = depthAttachment->getDimensions();
+          w = dims.width;
+          h = dims.height;
+        }
+
         VkFramebufferCreateInfo framebufferInfo = {};
         framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
         framebufferInfo.renderPass = renderPass;
@@ -139,13 +145,16 @@ namespace vgl
       {
         descriptorPools.push_back(new VulkanDescriptorPool(device, 64, 32, 0, 32, 0));
       }
+      
+      if(numColorAttachments == 0)
+        depthOnly = true;
 
       graphicsQueueFamily = instance->getGraphicsQueueFamily();
       isSwapChain = false;
     }
 
     VulkanFrameBuffer::VulkanFrameBuffer(VulkanSwapChain *swapchain, bool clearLoadOp)
-      : device(swapchain->getInstance()->getDefaultDevice()), clearLoadOp(clearLoadOp)
+      : device(swapchain->getInstance()->getDefaultDevice()), clearLoadOp(clearLoadOp), storeDepth(false)
     {
       instance = &VulkanInstance::currentInstance();
 
@@ -514,11 +523,18 @@ namespace vgl
         depthAttachment.format = depthAttachmentTex->getFormat();
         depthAttachment.samples = swapchain ? swapchain->getNumMultiSamples() : depthAttachmentTex->getMultiSamples();
         depthAttachment.loadOp = (clearLoadOp) ? VK_ATTACHMENT_LOAD_OP_CLEAR : VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-        depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+        depthAttachment.storeOp = (storeDepth) ? VK_ATTACHMENT_STORE_OP_STORE : VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
         depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
         depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
         depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+        if(depthAttachmentTex->isShaderResource())
+        {
+          depthAttachment.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+          depthAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+          shaderResource = true;
+        }
 
         depthAttachmentRef.attachment = attachmentPos;
         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;

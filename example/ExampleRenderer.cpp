@@ -185,9 +185,10 @@ void ExampleRenderer::initCommonLayoutsAndSets()
   if(!commonDSPoolA->simpleAllocate(numSwapChainImages, commonDSLayout1A, dynamicUboSets))
     throw vgl_runtime_error("Failed to allocate common pipeline descriptor sets!");
 
+  auto physLimits = instance->getPhysicalDeviceProperties().limits;
   for(int i = 0; i < numSwapChainImages; i++)
   {
-    dynamicUbos->putDescriptor(i, dynamicUboSets[i], 0);
+    dynamicUbos->putDescriptor(i, dynamicUboSets[i], 0, 0, physLimits.maxUniformBufferRange);
   }
 
   if(!commonDSPoolB->simpleAllocate(1, commonDSLayout1B, &templateState1DS))

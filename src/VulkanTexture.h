@@ -62,11 +62,25 @@ namespace vgl
 
       enum SamplerFilterType { ST_LINEAR, ST_NEAREST, ST_LINEAR_MIPMAP_LINEAR, ST_LINEAR_MIPMAP_NEAREST };
       void setFilters(SamplerFilterType minFilter, SamplerFilterType magFilter);
+      
+      enum CompareMode
+      {
+         CM_NEVER = 0,
+         CM_LESS = 1,
+         CM_EQUAL = 2,
+         CM_LESS_OR_EQUAL = 3,
+         CM_GREATER = 4,
+         CM_NOT_EQUAL = 5,
+         CM_GREATER_OR_EQUAL = 6,
+         CM_ALWAYS = 7,
+      };
+      void setCompareMode(CompareMode mode, bool enabled=true);
 
       void setAnisotropicFiltering(bool enabled, int maxSamples);
 
       enum WrapMode { WM_UNDEFINED = 0, WM_REPEAT, WM_CLAMP, WM_MIRRORED_REPEAT };
       void setWrapMode(WrapMode mode);
+      void setWrapMode(WrapMode uMode, WrapMode vMode, WrapMode wMode);
 
       ///Mipmapping has to be enabled BEFORE imageData() is called for it to have an effect
       void setMipmap(bool enabled, float lodBias=0);

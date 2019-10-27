@@ -49,7 +49,7 @@ namespace vgl
       /// set to the number of images in the swapchain and will define the domain for the imageIndex arguments
       /// throughout this class.  For simple one-shot render-to-texture, numBuffers should be 1
       VulkanFrameBuffer(VkDevice device, int numBuffers, const std::vector<ColorAttachment> &colorAttachments, VulkanTexture *depthAttachment=nullptr,
-        bool clearLoadOp=true);
+        bool clearLoadOp=true, bool storeDepth=false);
 
       ~VulkanFrameBuffer();
 
@@ -73,6 +73,8 @@ namespace vgl
 
       inline void setShouldInvertViewport(bool invert) { invertViewport = invert; }
       inline bool shouldInvertViewport() { return invertViewport; }
+      
+      inline bool isDepthOnly() { return depthOnly; }
 
     protected:
       void createRenderPass(VulkanSwapChain *swapchain);
@@ -97,6 +99,8 @@ namespace vgl
       VulkanTexture *depthAttachment = nullptr;
       int numColorAttachments = 0;
       bool clearLoadOp = true;
+      bool storeDepth = false;
+      bool depthOnly = false;
       VkClearColorValue clearColorValue = { 0.0f, 0.0f, 0.0f, 1.0f };
       uint32_t w = 0, h = 0;
 

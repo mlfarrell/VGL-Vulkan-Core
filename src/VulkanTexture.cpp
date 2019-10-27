@@ -483,6 +483,13 @@ namespace vgl
       else
         setMipmap(false, samplerState.mipLodBias);
     }
+  
+    void VulkanTexture::setCompareMode(CompareMode mode, bool enabled)
+    {
+      samplerState.compareOp = (VkCompareOp)mode;
+      samplerState.compareEnable = (enabled) ? VK_TRUE : VK_FALSE;
+      samplerDirty = true;
+    }
 
     void VulkanTexture::setAnisotropicFiltering(bool enabled, int maxSamples)
     {
@@ -510,8 +517,39 @@ namespace vgl
           samplerState.addressModeV = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
           //samplerState.addressModeW = VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
         break;
+        default:
+          verr << "Warning, unhandled enum in switch: " << mode << endl;
+        break;
       }
 
+      samplerDirty = true;
+    }
+  
+    void VulkanTexture::setWrapMode(WrapMode uMode, WrapMode vMode, WrapMode wMode)
+    {
+      auto modeToVulkan = [](WrapMode mode) -> VkSamplerAddressMode {
+        switch(mode)
+        {
+          case WM_REPEAT:
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+          break;
+          case WM_CLAMP:
+            return VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+          break;
+          case WM_MIRRORED_REPEAT:
+            return VK_SAMPLER_ADDRESS_MODE_MIRRORED_REPEAT;
+          break;
+          default:
+            verr << "Warning, unhandled enum in switch: " << mode << endl;
+            return VK_SAMPLER_ADDRESS_MODE_REPEAT;
+          break;
+        }
+      };
+      
+      samplerState.addressModeU = modeToVulkan(uMode);
+      samplerState.addressModeV = modeToVulkan(vMode);
+      samplerState.addressModeW = modeToVulkan(wMode);
+      
       samplerDirty = true;
     }
 
@@ -751,7 +789,7 @@ namespace vgl
       barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 
       barrier.image = image;
-      if(newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
+      if(newLayout == VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL || isDepth)
       {
         barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
         isDepth = true;
@@ -1036,10 +1074,11 @@ namespace vgl
         }
 
         samplerState.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-        samplerState.magFilter = (minFilter == ST_NEAREST) ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
-        samplerState.minFilter = (magFilter == ST_NEAREST) ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
+        samplerState.magFilter = (magFilter == ST_NEAREST) ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
+        samplerState.minFilter = (minFilter == ST_NEAREST) ? VK_FILTER_NEAREST : VK_FILTER_LINEAR;
         samplerState.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-        samplerState.compareOp = VK_COMPARE_OP_ALWAYS;
+        //samplerState.compareEnable = VK_TRUE;
+        //samplerState.compareOp = VK_COMPARE_OP_ALWAYS;
         samplerState.minLod = 0;
         if(mipmapEnabled)
           samplerState.maxLod = (float)numMipLevels;
