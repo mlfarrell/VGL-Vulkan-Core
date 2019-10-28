@@ -66,6 +66,8 @@ Then, open the Example.xcode Project and build.
 
 - Rendering performant OpenGL-style thick lines WITHOUT using a geometry shader would be a nice addition.
 
+**When submitting pull requests**, please take a look at the [Coding Style Guide](StyleGuide.md).  I am not sure if this project is at the point yet where multiple contributors will be a thing, but keep in mind that all changes must preserve compatability with existing engines that use this core.  So no major API changes or anything like that will be accepted at this point.
+
 ## License
 
 This software is licensed under the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0)
