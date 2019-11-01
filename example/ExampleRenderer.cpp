@@ -57,7 +57,7 @@ ExampleRenderer::ExampleRenderer()
   if((totalDynamicUboSize / numSwapChainImages) % nonCoherentAtomSz)
     verr << "Total dynamic UBO size not a multiple of nonCoherentAtomSz (cannot use non coherent memory for dynamic UBOs)" << endl;
   
-  dynamicUbos->setDedicatedAllocation(true, totalDynamicUboSize + 8192);
+  dynamicUbos->setDedicatedAllocation(true, totalDynamicUboSize);
   
   for(int i = 0; i < numSwapChainImages; i++)
     dynamicUbos->data(i, nullptr, totalDynamicUboSize / numSwapChainImages);

@@ -20,12 +20,176 @@ limitations under the License.
 #include <algorithm>
 #include "VulkanMemoryManager.h"
 
+#ifdef VGL_VULKAN_CORE_USE_VMA
+#define VMA_IMPLEMENTATION
+#include "vk_mem_alloc.h"
+#endif
+
 using namespace std;
 
 namespace vgl
 {
   namespace core
   {
+#ifdef VGL_VULKAN_CORE_USE_VMA
+    VulkanMemoryManager::VulkanMemoryManager(VkPhysicalDevice physicalDevice, VkDevice device)
+    {
+      VmaAllocatorCreateInfo allocatorInfo = {};
+
+      allocatorInfo.physicalDevice = physicalDevice;
+      allocatorInfo.device = device;
+      vmaCreateAllocator(&allocatorInfo, &allocator);
+
+      vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+      memset(pools, 0, sizeof(VmaPool)*maxPools);
+    }
+
+    void VulkanMemoryManager::makePool(uint64_t allocationId, uint32_t memoryTypeIndex, VkDeviceSize blockSize, size_t maxAllocations)
+    {
+      VmaPoolCreateInfo poolCreateInfo = {};
+      poolCreateInfo.memoryTypeIndex = memoryTypeIndex;
+      poolCreateInfo.blockSize = blockSize;
+      poolCreateInfo.maxBlockCount = maxAllocations;
+
+      assert(allocationId > 0);
+      vmaCreatePool(allocator, &poolCreateInfo, &pools[allocationId-1]);      
+    }
+
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId)
+    {
+      VulkanMemoryManager::Suballocation result;
+
+      VmaAllocationCreateInfo allocInfo = {};
+      allocInfo.requiredFlags = properties;
+      if(properties == 0)
+        allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+      if(allocationId > 0)
+        allocInfo.pool = pools[allocationId-1];
+
+      result.allocationResult = vmaAllocateMemoryForBuffer(allocator, buffer, &allocInfo, &result.allocation, nullptr);
+      return result;
+    }
+
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId)
+    {
+      VulkanMemoryManager::Suballocation result;
+
+      VmaAllocationCreateInfo allocInfo = {};
+      allocInfo.requiredFlags = properties;
+      if(properties == 0)
+        allocInfo.preferredFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+      if(allocationId > 0)
+        allocInfo.pool = pools[allocationId-1];
+
+      result.allocationResult = vmaAllocateMemoryForImage(allocator, image, &allocInfo, &result.allocation, nullptr);
+      return result;
+    }
+
+    pair<VmaPool, uint64_t> VulkanMemoryManager::allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize blockSize, size_t maxBlocks, bool allowSuballocation, bool imageOptimal)
+    {
+      auto getFreePool = [=]() -> uint64_t {
+        uint64_t poolIndex = 0;
+
+        for(poolIndex = 0; poolIndex < maxPools; poolIndex++)
+        {
+          if(!pools[poolIndex])
+            return poolIndex+1;
+        }
+
+        return 0;
+      };
+
+      if(auto poolIndex = getFreePool())
+      {
+        uint64_t allocationId = poolIndex;
+        uint32_t memoryType = findMemoryType(typeFilter, properties);
+
+        if(memoryType != VK_MAX_MEMORY_TYPES)
+        {
+          makePool(allocationId, memoryType, blockSize, maxBlocks);
+
+          //casting the pool to this since vma won't let me get memory
+          return { pools[allocationId-1], allocationId };
+        }
+      }
+
+      return { VK_NULL_HANDLE, 0 };
+    }
+
+    void VulkanMemoryManager::bindMemory(VkBuffer buffer, VulkanMemoryManager::Suballocation alloc)
+    {
+      if(alloc)
+        vmaBindBufferMemory(allocator, alloc.allocation, buffer);
+    }
+
+    void VulkanMemoryManager::bindMemory(VkImage image, VulkanMemoryManager::Suballocation alloc)
+    {
+      if(alloc)
+        vmaBindImageMemory(allocator, alloc.allocation, image);
+    }
+
+    VulkanMemoryManager::AllocationInfo VulkanMemoryManager::getAllocationInfo(Suballocation alloc)
+    {
+      VmaAllocationInfo vmaInfo;
+      AllocationInfo result;
+
+      vmaGetAllocationInfo(allocator, alloc.allocation, &vmaInfo);
+      result.memory = vmaInfo.deviceMemory;
+      result.memoryType = vmaInfo.memoryType;
+      result.offset = vmaInfo.offset;
+      result.size = vmaInfo.size;
+      result.allocationId = 0;
+
+      return result;
+    }
+
+    void VulkanMemoryManager::free(const Suballocation &suballocation)
+    {
+      vmaFreeMemory(allocator, suballocation.allocation);
+    }
+
+    bool VulkanMemoryManager::isAllocationCoherent(const Suballocation &suballocation)
+    {
+      auto info = getAllocationInfo(suballocation);
+      return (memoryProperties.memoryTypes[info.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationTypeCoherent(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+      uint32_t memoryType = findMemoryType(typeFilter, properties);
+      return (memoryProperties.memoryTypes[memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) ? true : false;
+    }
+
+    uint32_t VulkanMemoryManager::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+      for(uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+      {
+        if((typeFilter & (1 << i)) && (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties)
+        {
+          return i;
+        }
+      }
+
+      return VK_MAX_MEMORY_TYPES;
+    }
+
+    void VulkanMemoryManager::dumpAllocationsInfo()
+    {
+      char *stats = nullptr;
+
+      vout << "---VGL Vulkan core (vma) memory stats---" << endl;
+      vmaBuildStatsString(allocator, &stats, VK_FALSE);
+      vout << stats << endl;
+      vmaFreeStatsString(allocator, stats);
+    }
+
+    VulkanMemoryManager::~VulkanMemoryManager()
+    {
+      for(int i = 0; i < maxPools; i++) if(pools[i])
+        vmaDestroyPool(allocator, pools[i]);
+      vmaDestroyAllocator(allocator);
+    }
+#else
     VulkanMemoryManager::AllocationStrategy VulkanMemoryManager::allocationStrategy = VulkanMemoryManager::AS_DESKTOP;
     VulkanMemoryManager::FreeMode VulkanMemoryManager::freeMode = VulkanMemoryManager::FM_MANUAL;
     VkDeviceSize VulkanMemoryManager::allocSizeBoundaries[2][3];
@@ -56,7 +220,7 @@ namespace vgl
           allocSizeBoundaries[1][2] = (100<<20);  //100 mb
         break;
         case AS_DESKTOP:
-          allocSizeBoundaries[0][0] = (1<<10);    //1 mb
+          allocSizeBoundaries[0][0] = (1<<20);    //1 mb
           allocSizeBoundaries[0][1] = (25<<20);   //25 mb
           allocSizeBoundaries[0][2] = (100<<20);  //100 mb
 
@@ -77,6 +241,34 @@ namespace vgl
           vkFreeMemory(device, allocation->memory, nullptr);
       }
       delete []allocationsPool;
+    }
+
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId)
+    {
+      VkMemoryRequirements memRequirements;
+      vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+
+      return allocate(memRequirements.memoryTypeBits, properties, memRequirements.size, memRequirements.alignment, false, allocationId);
+    }
+
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId)
+    {
+      VkMemoryRequirements memRequirements;
+      vkGetImageMemoryRequirements(device, image, &memRequirements);
+
+      return allocate(memRequirements.memoryTypeBits, properties, memRequirements.size, memRequirements.alignment, true, allocationId);
+    }
+
+    void VulkanMemoryManager::bindMemory(VkBuffer buffer, VulkanMemoryManager::Suballocation alloc)
+    {
+      if(alloc)
+        vkBindBufferMemory(device, buffer, alloc.memory, alloc.offset);
+    }
+
+    void VulkanMemoryManager::bindMemory(VkImage image, VulkanMemoryManager::Suballocation alloc)
+    {
+      if(alloc)
+        vkBindImageMemory(device, image, alloc.memory, alloc.offset);
     }
 
     VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment, bool imageOptimal, uint64_t allocationId)
@@ -130,6 +322,13 @@ namespace vgl
           if(allocType == AT_LARGE && requiredSize < allocSizeBoundaries[1][(int)AT_MED])
           {
             allocType = AT_MED;
+            suballoc = findSuballocation(memoryType, requiredSize, requiredAlignment, allocType, imageOptimal, allocationId);
+
+            if(suballoc)
+            {
+              return suballoc;
+            }
+
             if(!makeNewAllocation(memoryType, allocType, imageOptimal))
             {
               if((lowMemoryFlags & memoryTypeBit) == 0)
@@ -170,48 +369,6 @@ namespace vgl
 
       return suballoc;
     }
-
-    /*VulkanMemoryManager::Suballocation VulkanMemoryManager::allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment, bool imageOptimal)
-    {
-      lock_guard<mutex> locker(managerLock);
-      if(requiredSize == 0)
-        return {};
-
-      AllocationType allocType = AT_DEDICATED;
-
-      uint32_t memoryType = findMemoryType(typeFilter, properties);
-      Suballocation suballoc;
-
-      //create dedicated (and full allocation)
-      if(auto memory = allocateDedicated(memoryType, requiredSize, imageOptimal))
-      {
-        auto &alloc = *allocations[memoryType].back();
-        uint32_t requiredPageSize = (uint32_t)fastCeil(requiredSize, pageSize);
-
-        suballoc.memory = memory;
-        suballoc.offset = 0;
-        suballoc.size = requiredPageSize;
-        suballoc.memoryType = memoryType;
-        suballoc.allocationId = alloc.id;
-
-        suballoc.subregionIt = alloc.regions.begin();
-        suballoc.subregionId = suballoc.subregionIt->id; 
-        alloc.suballocationCount = 1;
-      }
-      else
-      {
-        //TODO: handle allocation failure
-        throw vgl_runtime_error("VulkanMemoryManager::allocate failed");
-      }
-
-#ifdef DEBUG
-      //this shouldn't be possible
-      if(requiredAlignment > 0 && suballoc.offset > 0)
-        throw vgl_runtime_error("VulkanMemoryManager::allocate alignment failed");
-#endif
-
-      return suballoc;
-    }*/
 
     void VulkanMemoryManager::free(const Suballocation &suballocation)
     {
@@ -335,7 +492,7 @@ namespace vgl
     {
       lock_guard<mutex> locker(managerLock);
 
-      auto ret = allocateDedicated(memoryType, requiredSize, false, imageOptimal);
+      auto ret = allocateDedicated(memoryType, requiredSize, 1, false, imageOptimal);
 
       if(ret.first)
       {
@@ -348,14 +505,15 @@ namespace vgl
       return VK_NULL_HANDLE;
     }
 
-    pair<VkDeviceMemory, uint64_t> VulkanMemoryManager::allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, bool allowSuballocation, bool imageOptimal)
+    pair<VkDeviceMemory, uint64_t> VulkanMemoryManager::allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize blockSize, 
+      size_t maxBlocks, bool allowSuballocation, bool imageOptimal)
     {
       lock_guard<mutex> locker(managerLock);
 
       uint32_t memoryType = findMemoryType(typeFilter, properties);
 
       if(memoryType != NO_MEMORY_TYPE)
-        return allocateDedicated(memoryType, requiredSize, allowSuballocation, imageOptimal);
+        return allocateDedicated(memoryType, blockSize*maxBlocks + 8192, allowSuballocation, imageOptimal);
 
       return { VK_NULL_HANDLE, 0 };
     }
@@ -369,6 +527,12 @@ namespace vgl
     {      
       auto &allocation = *allocationForId(allocationId);
       return (memoryProperties.memoryTypes[allocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) ? true : false;
+    }
+
+    bool VulkanMemoryManager::isAllocationTypeCoherent(uint32_t typeFilter, VkMemoryPropertyFlags properties)
+    {
+      uint32_t memoryType = findMemoryType(typeFilter, properties);
+      return (memoryProperties.memoryTypes[memoryType].propertyFlags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) ? true : false;
     }
 
     bool VulkanMemoryManager::isAllocationHostCached(const Suballocation &suballocation)
@@ -404,9 +568,17 @@ namespace vgl
       return (memoryProperties.memoryTypes[allocation.memoryType].propertyFlags & VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT) ? true : false;
     }
 
-    VkDeviceSize VulkanMemoryManager::getAllocationSize(const Suballocation &suballocation)
+    VulkanMemoryManager::AllocationInfo VulkanMemoryManager::getAllocationInfo(Suballocation alloc)
     {
-      return (VkDeviceSize)(suballocation.size*pageSize);
+      AllocationInfo result;
+
+      result.memory = alloc.memory;
+      result.memoryType = alloc.memoryType;
+      result.offset = alloc.offset;
+      result.size = alloc.size*pageSize;
+      result.allocationId = alloc.allocationId;
+
+      return result;
     }
 
     pair<VkDeviceMemory, uint64_t> VulkanMemoryManager::allocateDedicated(uint32_t memoryType, VkDeviceSize requiredSize, bool allowSuballocation, bool imageOptimal)
@@ -605,8 +777,7 @@ namespace vgl
       
       if(region->size-sizeInPages == 0)
       {
-        //right side is empty, this isn't even a valid region now
-        //this allocation is officially filled up
+        //right side is now empty, so we remove that region entirely
         allocation.freeRegions.erase(freeRegionKey);
         allocation.regions.erase(region);
       }
@@ -618,6 +789,8 @@ namespace vgl
         region->size -= sizeInPages;
         region->startPage = region->startPage+sizeInPages;
         allocation.freeRegions.insert({ freeRegionKey, region });
+        
+        VGL_CORE_PERF_WARNING_DEBUG(allocation.regions.size() > 1024, "Vulkan memory manager moderate heap fragmentation detected!")
       }
 
       return newRegionIter;
@@ -720,7 +893,7 @@ namespace vgl
       ai = newAi;
 
       //any freed subregions less than this id won't be able to use their list iterators
-      //(this is why you should calling reclaimMemory often)
+      //(this is why you should avoid calling reclaimMemory often)
       invalidatedSubregionIds = subregionIds;
     }
 
@@ -729,5 +902,24 @@ namespace vgl
     {
       return (a->size == b->size) ? (a < b) : (a->size < b->size);
     }
+
+    void VulkanMemoryManager::dumpAllocationsInfo()
+    {
+      for(uint32_t i = 0; i < VK_MAX_MEMORY_TYPES; i++)
+      {
+        vout << "--- Memory type: " << i << "---" << endl;
+        for(auto &allocation : allocations[i]) if(allocation->memory)
+        {
+          vout << "-- allocation type: " << allocation->type << ", image optimal: " << allocation->imageOptimal << endl;
+          vout << "regions [ ";
+          for(auto &region : allocation->regions)
+          {
+            vout << "\t( start: " << region.startPage << ", size: " << region.size << ", free: " << region.free << ")" << endl;
+          }          
+          vout << "]" << endl;
+        }
+      }
+    }
+#endif
   }
 }

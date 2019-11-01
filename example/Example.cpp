@@ -138,10 +138,10 @@ void Example::setupVk()
   swapChainParams.depthBits = 24;
   VulkanSwapChain::setInitParameters(swapChainParams);
 #ifdef WIN32
-  VulkanSwapChain::setHWND(info.info.win.window);
+  VulkanSurface::setHWND(info.info.win.window);
 #elif defined MACOSX
   addMetalLayer(info.info.cocoa.window);
-  VulkanSwapChain::setWindow(info.info.cocoa.window);
+  VulkanSurface::setWindow(info.info.cocoa.window);
 #endif
 
   renderer = new ExampleRenderer();

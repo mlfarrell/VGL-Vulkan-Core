@@ -15,7 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "pch.h"
-#include "VulkanSwapChainBase.h"
+#include "VulkanSwapChain.h"
 #include "VulkanInstance.h"
 #include "VulkanFrameBuffer.h"
 #include "VulkanTexture.h"
@@ -30,24 +30,26 @@ namespace vgl
 {
   namespace core
   {
-    VulkanSwapChainBase::InitParameters VulkanSwapChainBase::initParams = {};
+    VulkanSwapChain::InitParameters VulkanSwapChain::initParams = {};
+    uint64_t VulkanSwapChain::frameId = 0, VulkanSwapChain::completedFrameId = 0;
 
-    void VulkanSwapChainBase::setInitParameters(InitParameters params)
+    void VulkanSwapChain::setInitParameters(InitParameters params)
     {
       initParams = params;
     }
 
-    VulkanSwapChainBase::VulkanSwapChainBase(VulkanInstance *instance)
-      : instance(instance)
+    VulkanSwapChain::VulkanSwapChain(VulkanInstance *instance, VulkanSurface *surface)
+      : instance(instance), surface(surface)
     {
+      init();
     }
 
-    VulkanSwapChainBase::~VulkanSwapChainBase()
+    VulkanSwapChain::~VulkanSwapChain()
     {
       cleanup();
     }
 
-    void VulkanSwapChainBase::cleanup()
+    void VulkanSwapChain::cleanup()
     {
       for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
       {
@@ -56,7 +58,6 @@ namespace vgl
         vkDestroyFence(instance->getDefaultDevice(), frameFences[i], nullptr);
       }
       vkDestroySwapchainKHR(instance->getDefaultDevice(), swapChain, nullptr);
-      vkDestroySurfaceKHR(instance->get(), surface, nullptr);
       if(depthAttachment)
         delete depthAttachment;
       if(msaaColorTarget)
@@ -65,7 +66,7 @@ namespace vgl
         delete msaaDepthTarget;
     }
 
-    uint32_t VulkanSwapChainBase::acquireNextImage()
+    uint32_t VulkanSwapChain::acquireNextImage()
     {
       if(frameIds[currentFrame])
       {
@@ -85,7 +86,7 @@ namespace vgl
       return imageIndex;
     }
 
-    void VulkanSwapChainBase::submitCommands(VkCommandBuffer commandBuffer, bool waitOnImageAcquire)
+    void VulkanSwapChain::submitCommands(VkCommandBuffer commandBuffer, bool waitOnImageAcquire)
     {
       VkSubmitInfo submitInfo = {};
       submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -112,7 +113,7 @@ namespace vgl
       }
     }
 
-    bool VulkanSwapChainBase::presentImage(uint32_t imageIndex)
+    bool VulkanSwapChain::presentImage(uint32_t imageIndex)
     {
       VkPresentInfoKHR presentInfo = {};
       presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
@@ -129,10 +130,9 @@ namespace vgl
 
       if(result != VK_SUCCESS)
       {
-        if(result == VK_ERROR_OUT_OF_DATE_KHR)
+        if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         {
-          //pewmp
-          defunct = true;
+          instance->recreateSwapChain();
           return false;
         }
         else
@@ -149,19 +149,19 @@ namespace vgl
       return true;
     }
 
-    bool VulkanSwapChainBase::submitAndPresent(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+    bool VulkanSwapChain::submitAndPresent(VkCommandBuffer commandBuffer, uint32_t imageIndex)
     {
       submitCommands(commandBuffer);
       return presentImage(imageIndex);
     }
 
-    void VulkanSwapChainBase::waitForRender()
+    void VulkanSwapChain::waitForRender()
     {
       vkWaitForFences(swapchainDevice, MAX_FRAMES_IN_FLIGHT, frameFences, VK_TRUE, numeric_limits<uint64_t>::max());
     }
 
     //this method is intended to replace the acquire step when rendering to a swapchain image that we do NOT intend to present
-    void VulkanSwapChainBase::waitForPreviousFrame()
+    void VulkanSwapChain::waitForPreviousFrame()
     {
       VkSubmitInfo submitInfo = {};
       submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -172,13 +172,13 @@ namespace vgl
       frameIds[currentFrame] = getNewFrameId();
     }
 
-    void VulkanSwapChainBase::init()
+    void VulkanSwapChain::init()
     {
       auto device = instance->getPhysicalDevice();
 
       VkBool32 presentSupport = false;
       int presentQueueFamily = instance->getGraphicsQueueFamily();
-      vkGetPhysicalDeviceSurfaceSupportKHR(device, presentQueueFamily, surface, &presentSupport);
+      vkGetPhysicalDeviceSurfaceSupportKHR(device, presentQueueFamily, surface->get(), &presentSupport);
 
       //https://vulkan-tutorial.com/Drawing_a_triangle/Presentation/Window_surface
       if(!presentSupport)
@@ -203,35 +203,36 @@ namespace vgl
         createDepthAttachment();
     }
 
-    VulkanSwapChainBase::SwapChainSupportDetails VulkanSwapChainBase::querySwapChainSupport(VkPhysicalDevice device)
+    VulkanSwapChain::SwapChainSupportDetails VulkanSwapChain::querySwapChainSupport(VkPhysicalDevice device)
     {
       SwapChainSupportDetails details;
+      auto surf = surface->get();
 
-      if(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities) != VK_SUCCESS)
+      if(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surf, &details.capabilities) != VK_SUCCESS)
       {
         throw vgl_runtime_error("Cannot query Vulkan surface capabilities");
       }
 
       uint32_t formatCount;
-      vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, nullptr);
+      vkGetPhysicalDeviceSurfaceFormatsKHR(device, surf, &formatCount, nullptr);
       if(formatCount != 0) 
       {
         details.formats.resize(formatCount);
-        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &formatCount, details.formats.data());
+        vkGetPhysicalDeviceSurfaceFormatsKHR(device, surf, &formatCount, details.formats.data());
       }
 
       uint32_t presentModeCount;
-      vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, nullptr);
+      vkGetPhysicalDeviceSurfacePresentModesKHR(device, surf, &presentModeCount, nullptr);
       if(presentModeCount != 0) 
       {
         details.presentModes.resize(presentModeCount);
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &presentModeCount, details.presentModes.data());
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surf, &presentModeCount, details.presentModes.data());
       }
 
       return details;
     }
 
-    VkSurfaceFormatKHR VulkanSwapChainBase::chooseSwapSurfaceFormat(const vector<VkSurfaceFormatKHR> &availableFormats)
+    VkSurfaceFormatKHR VulkanSwapChain::chooseSwapSurfaceFormat(const vector<VkSurfaceFormatKHR> &availableFormats)
     {
       if(availableFormats.size() == 1 && availableFormats[0].format == VK_FORMAT_UNDEFINED) 
       {
@@ -247,7 +248,7 @@ namespace vgl
       return availableFormats[0];
     }
 
-    VkPresentModeKHR VulkanSwapChainBase::chooseSwapPresentMode(const vector<VkPresentModeKHR> &availablePresentModes)
+    VkPresentModeKHR VulkanSwapChain::chooseSwapPresentMode(const vector<VkPresentModeKHR> &availablePresentModes)
     {
       VkPresentModeKHR bestMode = VK_PRESENT_MODE_FIFO_KHR;
 
@@ -265,14 +266,14 @@ namespace vgl
       return bestMode;
     }
 
-    VkExtent2D VulkanSwapChainBase::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities)
+    VkExtent2D VulkanSwapChain::chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities)
     {
       VkExtent2D extent;
 
       if(capabilities.currentExtent.width == numeric_limits<uint32_t>::max())
       {
-        extent.width = winW;
-        extent.height = winH;
+        extent.width = surface->getWidth();
+        extent.height = surface->getHeight();
       }
       else
       {
@@ -283,7 +284,7 @@ namespace vgl
       return extent;
     }
 
-    void VulkanSwapChainBase::createSwapchain()
+    void VulkanSwapChain::createSwapchain()
     {
       int graphicsQueueFamily = instance->getGraphicsQueueFamily();
       int presentQueueFamily = graphicsQueueFamily;
@@ -307,7 +308,7 @@ namespace vgl
 
       VkSwapchainCreateInfoKHR createInfo = {};
       createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-      createInfo.surface = surface;
+      createInfo.surface = surface->get();
       createInfo.minImageCount = imageCount;
       createInfo.imageFormat = surfaceFormat.format;
       createInfo.imageColorSpace = surfaceFormat.colorSpace;
@@ -365,7 +366,7 @@ namespace vgl
       }
     }
 
-    void VulkanSwapChainBase::createDepthAttachment()
+    void VulkanSwapChain::createDepthAttachment()
     {
       auto physicalDevice = instance->getPhysicalDevice();
 
@@ -439,7 +440,7 @@ namespace vgl
       }
     }
 
-    void VulkanSwapChainBase::obtainSwapchainImages()
+    void VulkanSwapChain::obtainSwapchainImages()
     {
       auto device = instance->getDefaultDevice();
 
@@ -451,7 +452,7 @@ namespace vgl
       swapchainDevice = device;
     }
 
-    void VulkanSwapChainBase::createSyncPrimitives()
+    void VulkanSwapChain::createSyncPrimitives()
     {
       VkSemaphoreCreateInfo semaphoreInfo = {};
       semaphoreInfo.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
@@ -471,7 +472,7 @@ namespace vgl
       }
     }
 
-    void VulkanSwapChainBase::completeFrame(uint64_t frameId)
+    void VulkanSwapChain::completeFrame(uint64_t frameId)
     {
       if(frameId > completedFrameId)
       {

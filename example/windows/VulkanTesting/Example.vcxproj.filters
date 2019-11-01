@@ -78,12 +78,6 @@
     <ClInclude Include="..\..\..\src\VulkanBufferGroup.h">
       <Filter>Source Files\core</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\src\os\VulkanSwapChainBase.h">
-      <Filter>Source Files\core</Filter>
-    </ClInclude>
-    <ClInclude Include="..\..\..\src\os\win\VulkanSwapChain.h">
-      <Filter>Source Files\core</Filter>
-    </ClInclude>
     <ClInclude Include="pch.h">
       <Filter>Source Files</Filter>
     </ClInclude>
@@ -95,6 +89,12 @@
     </ClInclude>
     <ClInclude Include="..\..\Example.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\os\win\VulkanSurface.h">
+      <Filter>Source Files\core</Filter>
+    </ClInclude>
+    <ClInclude Include="..\..\..\src\os\VulkanSwapChain.h">
+      <Filter>Source Files\core</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
@@ -146,12 +146,6 @@
     <ClCompile Include="..\..\..\src\VulkanBufferGroup.cpp">
       <Filter>Source Files\core</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\..\src\os\VulkanSwapChainBase.cpp">
-      <Filter>Source Files\core</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\..\src\os\win\VulkanSwapChain.cpp">
-      <Filter>Source Files\core</Filter>
-    </ClCompile>
     <ClCompile Include="..\..\..\src\VecTypes.cpp">
       <Filter>Source Files\core</Filter>
     </ClCompile>
@@ -160,6 +154,12 @@
     </ClCompile>
     <ClCompile Include="..\..\Example.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\os\win\VulkanSurface.cpp">
+      <Filter>Source Files\core</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\..\src\os\VulkanSwapChain.cpp">
+      <Filter>Source Files\core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

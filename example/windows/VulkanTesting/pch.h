@@ -1,6 +1,7 @@
 #define _USE_MATH_DEFINES 
 #include <math.h>
 #include <vulkan.h>
+#include "vglcore.h"
 
 #ifdef MACOSX
 #include <vulkan_macos.h>

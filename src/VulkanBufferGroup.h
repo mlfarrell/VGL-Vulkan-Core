@@ -113,11 +113,10 @@ namespace vgl
       bool isResident = false;
       int bufferCount;
       UsageType usageType = UT_VERTEX;
-      uint64_t allocationId = 0;
+      uint64_t allocationId = 0, dedicatedHostAllocationId = 0;
 
       bool dedicatedAllocation = false, hostAllocationNeedsFlush = false;
-      size_t dedicatedAllocationSize = 0;
-      uint64_t dedicatedHostAllocationId = 0;
+      size_t dedicatedAllocationSize = 0, dedicatedAllocationEnd = 0;
       VkMemoryPropertyFlagBits dedicatedHostAllocationMemoryFlags;
       void *persistentlyMappedHostMemoryAddress = nullptr;
 

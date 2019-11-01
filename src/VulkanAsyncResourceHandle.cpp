@@ -318,6 +318,10 @@ namespace vgl
       resourceCollections.emplace_back(collection);
       for(auto handle : resourceCollections.back().handles) if(handle)
         handle->retain();
+      
+      VGL_CORE_PERF_WARNING_DEBUG(resourceCollections.size() > 1024,
+                                  "VGL Performance Warning:  Async resource collections array has grown to a large size "
+                                  "(likely too many buffer updates per frame)!")
     }
 
     void VulkanAsyncResourceMonitor::poll(VkDevice device)

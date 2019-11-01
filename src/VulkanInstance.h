@@ -17,6 +17,7 @@ limitations under the License.
 #pragma once
 
 #include "vulkan.h"
+#include "VulkanSurface.h"
 #include "VulkanSwapChain.h"
 #include "VulkanMemoryManager.h"
 #include "VulkanAsyncResourceHandle.h"
@@ -54,6 +55,9 @@ namespace vgl
       inline VulkanAsyncResourceMonitor *getResourceMonitor() { return resourceMonitor; }
 
       inline VulkanSwapChain *getSwapChain() { return swapChain; }
+
+      ///Used to handle window resizing
+      void recreateSwapChain();
 
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       //Down the road, if I decide to do multiple threads building command buffers, I'll break these methods into a 
@@ -96,6 +100,7 @@ namespace vgl
       VkPhysicalDeviceProperties physicalDeviceProperties;
       VkPhysicalDeviceFeatures physicalDeviceFeatures;
 
+      VulkanSurface *surface = nullptr;
       VulkanSwapChain *swapChain = nullptr;
       VulkanMemoryManager *memoryManager = nullptr;
       VulkanAsyncResourceMonitor *resourceMonitor = nullptr;
@@ -106,6 +111,7 @@ namespace vgl
       void getRequiredDeviceExtensions();
       void setupDefaultDevice();
       void setupLogicalDevice();
+      void setupSurface();
       void setupSwapChain();
       void setupPipelineCache();
 

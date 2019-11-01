@@ -56,6 +56,9 @@ namespace vgl
       ///Recreates the framebuffer by updating its attachments (but keeping old renderpass & identifier).  
       ///Attachments MUST have the same format & overall renderpass compatability as the original
       void updateAttachments(const std::vector<ColorAttachment> &colorAttachments, VulkanTexture *depthAttachment=nullptr);
+      
+      ///This does not include the msaa color buffer (if msaa is enabled)
+      inline int getNumColorAttachments() { return numRenderpassColorAttachments; }
 
       VkCommandBuffer getCommandBuffer(int imageIndex=0);
 
@@ -97,7 +100,7 @@ namespace vgl
       //these are not defined if the framebuffer was created with a swapchain
       std::vector<ColorAttachment> colorAttachments;
       VulkanTexture *depthAttachment = nullptr;
-      int numColorAttachments = 0;
+      int numColorAttachments = 0, numRenderpassColorAttachments = 0;
       bool clearLoadOp = true;
       bool storeDepth = false;
       bool depthOnly = false;

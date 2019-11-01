@@ -18,6 +18,7 @@ limitations under the License.
 #include "VulkanSwapChain.h"
 #include "VulkanExtensionLoader.h"
 #include "VulkanInstance.h"
+#include "VulkanSurface.h"
 
 using namespace std;
 
@@ -25,31 +26,23 @@ namespace vgl
 {
   namespace core
   {
-    HWND VulkanSwapChainWin::hwnd = NULL;
+    HWND VulkanSurfaceWin::hwnd = NULL;
 
-    void VulkanSwapChainWin::setHWND(HWND hwnd)
+    void VulkanSurfaceWin::setHWND(HWND hwnd)
     {
-      VulkanSwapChainWin::hwnd = hwnd;
+      VulkanSurfaceWin::hwnd = hwnd;
     }
 
-    VulkanSwapChainWin::VulkanSwapChainWin(VulkanInstance *instance)
-      : VulkanSwapChainBase(instance)
+    VulkanSurfaceWin::VulkanSurfaceWin(VulkanInstance *instance) : instance(instance)
     {
       if(!hwnd)
         throw vgl_runtime_error("You must call VulkanSwapChain::setHWND(HWND hwnd) before initializing vulkan swap chain");
 
-      RECT rect;
-      if(GetClientRect(hwnd, &rect))
-      {
-        winW = rect.right-rect.left;
-        winH = rect.bottom-rect.top;
-      }
-
+      updateDimensions();
       createSurface();
-      init();
     }
 
-    void VulkanSwapChainWin::createSurface()
+    void VulkanSurfaceWin::createSurface()
     {
       VkWin32SurfaceCreateInfoKHR createInfo = {};
       createInfo.sType = VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR;
@@ -60,16 +53,19 @@ namespace vgl
         throw vgl_runtime_error("Failed to create Vulkan window surface!");
     }
 
-    VulkanSwapChainWin::~VulkanSwapChainWin()
+    void VulkanSurfaceWin::updateDimensions()
     {
+      RECT rect;
+      if(GetClientRect(hwnd, &rect))
+      {
+        w = rect.right-rect.left;
+        h = rect.bottom-rect.top;
+      }
     }
 
-    void VulkanSwapChainWin::recreate()
+    VulkanSurfaceWin::~VulkanSurfaceWin()
     {
-      vkDeviceWaitIdle(swapchainDevice);
-      cleanup();
-      createSurface();
-      init();
+      vkDestroySurfaceKHR(instance->get(), surface, nullptr);
     }
   }
 }

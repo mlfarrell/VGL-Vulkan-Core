@@ -159,8 +159,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\src\os\VulkanSwapChainBase.h" />
-    <ClInclude Include="..\..\..\src\os\win\VulkanSwapChain.h" />
+    <ClInclude Include="..\..\..\src\os\VulkanSwapChain.h" />
+    <ClInclude Include="..\..\..\src\os\win\VulkanSurface.h" />
     <ClInclude Include="..\..\..\src\SequentialIdentifier.h" />
     <ClInclude Include="..\..\..\src\ShaderUniformTypeEnums.h" />
     <ClInclude Include="..\..\..\src\VecTypes.h" />
@@ -187,8 +187,8 @@
     <ClInclude Include="VulkanTesting.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\src\os\VulkanSwapChainBase.cpp" />
-    <ClCompile Include="..\..\..\src\os\win\VulkanSwapChain.cpp" />
+    <ClCompile Include="..\..\..\src\os\VulkanSwapChain.cpp" />
+    <ClCompile Include="..\..\..\src\os\win\VulkanSurface.cpp" />
     <ClCompile Include="..\..\..\src\SequentialIdentifier.cpp" />
     <ClCompile Include="..\..\..\src\VecTypes.cpp" />
     <ClCompile Include="..\..\..\src\VulkanAsyncResourceHandle.cpp" />

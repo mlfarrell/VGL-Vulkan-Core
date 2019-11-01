@@ -491,6 +491,7 @@ namespace vgl
       subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
       subpass.colorAttachmentCount = (firstColorResolveTargetIndex == -1) ? numColorAttachments : firstColorResolveTargetIndex;
       subpass.pColorAttachments = colorAttachmentRefs;
+      numRenderpassColorAttachments = subpass.colorAttachmentCount;
 
       if(swapchain && swapchain->getNumMultiSamples() > 1)
       {

@@ -232,13 +232,15 @@ namespace vgl
       }
 
       alloc = stagingBufferAllocation;
+
+      auto allocInfo = instance->getMemoryManager()->getAllocationInfo(alloc);
       void *mappedPtr;
-      if(vkMapMemory(device, alloc.memory, alloc.offset + numBytes*layerIndex, numBytes, 0, &mappedPtr) != VK_SUCCESS)
+      if(vkMapMemory(device, allocInfo.memory, allocInfo.offset + numBytes*layerIndex, numBytes, 0, &mappedPtr) != VK_SUCCESS)
       {
         throw vgl_runtime_error("Unable to map staging buffer in VulkanBufferGroup::data()!");
       }
       memcpy(mappedPtr, data, numBytes);
-      vkUnmapMemory(device, stagingBufferAllocation.memory);
+      vkUnmapMemory(device, allocInfo.memory);
 
       isShaderRsrc = true;
 
@@ -371,18 +373,13 @@ namespace vgl
       if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
         throw std::runtime_error("Failed to create Vulkan image!");
 
-      VkMemoryRequirements memRequirements;
       VulkanMemoryManager::Suballocation alloc;
 
-      vkGetImageMemoryRequirements(device, image, &memRequirements);
-
-      alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        memRequirements.size, memRequirements.alignment, true);
+      alloc = instance->getMemoryManager()->allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image);
       if(!alloc)
       {
         //must be out of GPU memory, fallback on whater we can use
-        alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, 0,
-          memRequirements.size, memRequirements.alignment, true);
+        alloc = instance->getMemoryManager()->allocate(0, image);
         isResident = false;
       }
       else
@@ -391,8 +388,8 @@ namespace vgl
       }
       imageAllocation = alloc;
 
-      vkBindImageMemory(device, image, alloc.memory, alloc.offset);
-
+      instance->getMemoryManager()->bindMemory(image, alloc);
+      
       VkImageLayout layout = (!isDepth) ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
       if(usage & U_SAMPLED_IMAGE)
@@ -439,8 +436,9 @@ namespace vgl
 
       copyFromImage(x, y, readWidth, readHeight, layer, level, VK_NULL_HANDLE, true);
 
+      auto allocInfo = instance->getMemoryManager()->getAllocationInfo(stagingBufferAllocation);
       void *mappedPtr;
-      if(vkMapMemory(device, stagingBufferAllocation.memory, stagingBufferAllocation.offset + size*layer, linearCopySize, 0, &mappedPtr) != VK_SUCCESS)
+      if(vkMapMemory(device, allocInfo.memory, allocInfo.offset + size*layer, linearCopySize, 0, &mappedPtr) != VK_SUCCESS)
       {
         throw vgl_runtime_error("Unable to map staging buffer in VulkanBufferGroup::data()!");
       }
@@ -470,7 +468,7 @@ namespace vgl
         memcpy(data, mappedPtr, linearCopySize);
       }
 
-      vkUnmapMemory(device, stagingBufferAllocation.memory);
+      vkUnmapMemory(device, allocInfo.memory);
     }
 
     void VulkanTexture::setFilters(SamplerFilterType min, SamplerFilterType mag)
@@ -886,7 +884,6 @@ namespace vgl
     void VulkanTexture::createStagingBuffer(bool needsTransferDest)
     {
       VkBufferCreateInfo bufferInfo = {};
-      VkMemoryRequirements memRequirements;
       VulkanMemoryManager::Suballocation alloc;
 
       bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
@@ -904,14 +901,10 @@ namespace vgl
         throw vgl_runtime_error("Failed to create vertex buffer!");
       }
 
-      vkGetBufferMemoryRequirements(device, stagingBuffer, &memRequirements);
-
-      alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits,
-        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-        memRequirements.size, memRequirements.alignment);
+      alloc = instance->getMemoryManager()->allocate(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer);
       stagingBufferAllocation = alloc;
 
-      vkBindBufferMemory(device, stagingBuffer, alloc.memory, alloc.offset);
+      instance->getMemoryManager()->bindMemory(stagingBuffer, alloc);
       stagingBufferHandle = VulkanAsyncResourceHandle::newBuffer(instance->getResourceMonitor(), device, stagingBuffer, alloc);
     }
     
@@ -962,7 +955,6 @@ namespace vgl
 
     void VulkanTexture::createImage()
     {
-      VkMemoryRequirements memRequirements;
       VkImageCreateInfo imageInfo = {};
 
       imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
@@ -999,15 +991,12 @@ namespace vgl
       if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
         throw std::runtime_error("Failed to create Vulkan image!");
 
-      vkGetImageMemoryRequirements(device, image, &memRequirements);
-      auto alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-        memRequirements.size, memRequirements.alignment, true);
+      auto alloc = instance->getMemoryManager()->allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image);
 
       if(!alloc)
       {
         //must be out of GPU memory, fallback on whatever we can use
-        alloc = instance->getMemoryManager()->allocate(memRequirements.memoryTypeBits, 0,
-          memRequirements.size, memRequirements.alignment, true);
+        alloc = instance->getMemoryManager()->allocate(0, image);
         isResident = false;
       }
       else
@@ -1016,7 +1005,7 @@ namespace vgl
       }
 
       imageAllocation = alloc;
-      vkBindImageMemory(device, image, alloc.memory, alloc.offset);
+      instance->getMemoryManager()->bindMemory(image, alloc);
     }
 
     void VulkanTexture::createImageView()

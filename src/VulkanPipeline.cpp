@@ -121,12 +121,20 @@ namespace vgl
       VkPipelineMultisampleStateCreateInfo multisampling = {};
       memcpy(&multisampling, &state->multiSample, sizeof(state->multiSample));
       multisampling.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO;
-      multisampling.pSampleMask = (state->multiSampleMaskEnable) ? &state->multiSampleMask : nullptr;
+      multisampling.pSampleMask = (state->extraStateFlags & VPSF_MULTI_SAMPLE_MASK_ENABLE) ? &state->multiSampleMask : nullptr;
 
       VkPipelineColorBlendStateCreateInfo colorBlending = {};
+      VkPipelineColorBlendAttachmentState blendAttachmentStates[16];
       memcpy(&colorBlending, &state->blend, sizeof(state->blend));
       colorBlending.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
       colorBlending.pAttachments = &state->blendAttachment0;
+      if(state->extraStateFlags & VPSF_REPEAT_BLEND_ATTACHMENT0 && colorBlending.attachmentCount > 1)
+      {
+        for(int i = 0; i < colorBlending.attachmentCount; i++)
+          memcpy(&blendAttachmentStates[i], &state->blendAttachment0, sizeof(VkPipelineColorBlendAttachmentState));
+        
+        colorBlending.pAttachments = blendAttachmentStates;
+      }
 
       VkPipelineDepthStencilStateCreateInfo depthStencil = {};
       memcpy(&depthStencil, &state->depthStencil, sizeof(state->depthStencil));

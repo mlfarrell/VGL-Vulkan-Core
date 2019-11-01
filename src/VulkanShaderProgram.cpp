@@ -20,10 +20,6 @@ limitations under the License.
 #include <sstream>
 #include <regex>
 
-#ifndef VGL_VULKAN_CORE_STANDALONE
-#define VGL_VULKAN_USE_SPIRV_CROSS
-#endif
-
 #include "shaderc/shaderc.hpp"
 #include "VulkanInstance.h"
 #include "VulkanShaderProgram.h"

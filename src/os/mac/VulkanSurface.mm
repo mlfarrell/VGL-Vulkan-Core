@@ -19,6 +19,7 @@ limitations under the License.
 #include "VulkanSwapChain.h"
 #include "VulkanExtensionLoader.h"
 #include "VulkanInstance.h"
+#include "VulkanSurface.h"
 
 using namespace std;
 
@@ -26,28 +27,23 @@ namespace vgl
 {
   namespace core
   {
-    void *VulkanSwapChainMac::window = NULL;
+    void *VulkanSurfaceMac::window = NULL;
 
-    void VulkanSwapChainMac::setWindow(void *cocoaWindow)
+    void VulkanSurfaceMac::setWindow(void *cocoaWindow)
     {
       window = cocoaWindow;
     }
 
-    VulkanSwapChainMac::VulkanSwapChainMac(VulkanInstance *instance)
-      : VulkanSwapChainBase(instance)
+    VulkanSurfaceMac::VulkanSurfaceMac(VulkanInstance *instance) : instance(instance)
     {
       if(!window)
         throw runtime_error("You must call VulkanSwapChain::setWindow() before initializing vulkan swap chain");
 
-      NSWindow *win = (__bridge NSWindow *)window;
-      winW = (uint32_t)win.contentView.bounds.size.width;
-      winH = (uint32_t)win.contentView.bounds.size.height;
-
+	  updateDimensions();
       createSurface();
-      init();
     }
 
-    void VulkanSwapChainMac::createSurface()
+    void VulkanSurfaceMac::createSurface()
     {
       NSWindow *win = (__bridge NSWindow *)window;
       
@@ -59,16 +55,16 @@ namespace vgl
         throw runtime_error("Failed to create Vulkan window surface!");
     }
 
-    VulkanSwapChainMac::~VulkanSwapChainMac()
+    void VulkanSurfaceMac::updateDimensions()
     {
+      NSWindow *win = (__bridge NSWindow *)window;
+      w = (uint32_t)win.contentView.bounds.size.width;
+      h = (uint32_t)win.contentView.bounds.size.height;
     }
 
-    void VulkanSwapChainMac::recreate()
+    VulkanSurfaceMac::~VulkanSurfaceMac()
     {
-      vkDeviceWaitIdle(swapchainDevice);
-      cleanup();
-      createSurface();
-      init();
+      vkDestroySurfaceKHR(instance->get(), surface, nullptr);
     }
   }
 }

@@ -18,6 +18,7 @@ limitations under the License.
 
 #include <vector>
 #include "vulkan.h"
+#include "VulkanSurface.h"
 
 namespace vgl
 {
@@ -26,7 +27,7 @@ namespace vgl
     class VulkanInstance;
     class VulkanTexture;
 
-    class VulkanSwapChainBase
+    class VulkanSwapChain
     {
     public:
       struct InitParameters
@@ -37,8 +38,8 @@ namespace vgl
 
       static void setInitParameters(InitParameters params);
 
-      VulkanSwapChainBase(VulkanInstance *instance);
-      ~VulkanSwapChainBase();
+      VulkanSwapChain(VulkanInstance *instance, VulkanSurface *surface);
+      ~VulkanSwapChain();
 
       uint32_t acquireNextImage();
       void submitCommands(VkCommandBuffer commandBuffer, bool waitOnImageAcquire=true);
@@ -72,8 +73,8 @@ namespace vgl
       static InitParameters initParams;
 
       VulkanInstance *instance;
+      VulkanSurface *surface;
       VkSwapchainKHR swapChain;
-      VkSurfaceKHR surface;
       VkQueue graphicsQueue, presentQueue;
       VkDevice swapchainDevice;
 
@@ -115,7 +116,7 @@ namespace vgl
       void createSyncPrimitives();
 
     private:
-      uint64_t frameId = 0, completedFrameId = 0;
+      static uint64_t frameId, completedFrameId;
       inline uint64_t getNewFrameId() { return ++frameId; }
       void completeFrame(uint64_t frameId);
     };

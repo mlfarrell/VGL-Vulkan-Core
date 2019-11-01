@@ -103,16 +103,11 @@ namespace vgl
 
       auto er = cachedPSOs.equal_range(hashKey);
       int count = 0;
-      static bool warned = false;
       for(auto it = er.first; it != er.second; it++)
       {
         if(count)
         {
-          if(!warned)
-          {
-            verr << "Vulkan Pipeline State Hash collision on getCachedPSO.  This is generally very bad for performance!" << std::endl;
-            warned = true;
-          }
+          VGL_CORE_PERF_WARNING_DEBUG(true, "Vulkan Pipeline State Hash collision on getCachedPSO!")
 
           if(count == 1)
           {

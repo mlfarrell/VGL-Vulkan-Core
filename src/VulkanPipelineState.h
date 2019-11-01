@@ -22,6 +22,12 @@ namespace vgl
 {
   namespace core
   {
+    enum VulkanPipelineStateFlags : uint32_t
+    {
+      VPSF_MULTI_SAMPLE_MASK_ENABLE = 1<<0,
+      VPSF_REPEAT_BLEND_ATTACHMENT0 = 1<<1,
+    };
+  
     struct VulkanPipelineState
     {
       //This class must have a linear memory layout and thus...
@@ -40,7 +46,6 @@ namespace vgl
       
       VkPipelineMultisampleStateCreateInfo multiSample;
       VkSampleMask multiSampleMask;
-      bool multiSampleMaskEnable;
 
       uint32_t numVertexAttributes;
       uint32_t numVertexBindings;
@@ -48,6 +53,7 @@ namespace vgl
       VkVertexInputBindingDescription vertexInputBindings[16];
 
       uint32_t vaoIdentifier, fboIdentifier;
+      uint32_t extraStateFlags;
     };
   }
 }

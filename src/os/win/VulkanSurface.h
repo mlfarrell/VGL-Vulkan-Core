@@ -16,28 +16,36 @@ limitations under the License.
 
 #pragma once
 
-#include "VulkanSwapChainBase.h"
-
 namespace vgl
 {
   namespace core
   {
-    class VulkanSwapChainWin : public VulkanSwapChainBase
+    class VulkanInstance;
+
+    class VulkanSurfaceWin
     {
     public:
       static void setHWND(HWND hwnd);
 
-      VulkanSwapChainWin(VulkanInstance *instance);
-      ~VulkanSwapChainWin();
+      VulkanSurfaceWin(VulkanInstance *instance);
+      ~VulkanSurfaceWin();
 
-      void recreate();
+      inline VkSurfaceKHR get() { return surface; }
+
+      void updateDimensions();
+      inline uint32_t getWidth() { return w; }
+      inline uint32_t getHeight() { return h; }
 
     protected:
       static HWND hwnd;
 
+      VulkanInstance *instance;
+      VkSurfaceKHR surface;
+      uint32_t w = 0, h = 0;
+
       void createSurface();
     };
 
-    typedef VulkanSwapChainWin VulkanSwapChain;
+    typedef VulkanSurfaceWin VulkanSurface;
   }
 }

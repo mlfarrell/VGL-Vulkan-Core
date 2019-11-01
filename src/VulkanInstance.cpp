@@ -159,6 +159,7 @@ namespace vgl
       currentVulkanInstance = this;
 
       getRequiredDeviceExtensions();
+      setupSurface();
       setupDefaultDevice();
     }
 
@@ -196,7 +197,14 @@ namespace vgl
         vector<string> extraExtensions;
       };
 
-      auto rateDevice = [=](PhysicalDevice &deviceStruct)->int {
+      auto deviceSupportsSwapchainPresent = [=](VkPhysicalDevice device, int queueFamily) -> bool {
+        VkBool32 presentSupport = false;
+        vkGetPhysicalDeviceSurfaceSupportKHR(device, queueFamily, surface->get(), &presentSupport);
+
+        return presentSupport;
+      };
+
+      auto rateDevice = [=](PhysicalDevice &deviceStruct) -> int {
         int score = 0;
         VkPhysicalDevice device = deviceStruct.device;
         auto &extraExtensions = deviceStruct.extraExtensions;
@@ -218,6 +226,8 @@ namespace vgl
         //set score to 0 for deal breakers
         int graphicsFamily = findQueueFamilies(device);
         if(graphicsFamily < 0)
+          score = 0;
+        if(!deviceSupportsSwapchainPresent(device, graphicsFamily))
           score = 0;
 
         uint32_t extensionCount;
@@ -376,9 +386,14 @@ namespace vgl
       vkGetDeviceQueue(device, graphicsQueueFamily, 0, &graphicsQueue);
     }
 
+    void VulkanInstance::setupSurface()
+    {
+      surface = new VulkanSurface(this);
+    }
+
     void VulkanInstance::setupSwapChain()
     {
-      swapChain = new VulkanSwapChain(this);
+      swapChain = new VulkanSwapChain(this, surface);
     }
 
     void VulkanInstance::setupPipelineCache()
@@ -477,6 +492,8 @@ namespace vgl
 
       if(swapChain)
         delete swapChain;
+      if(surface)
+        delete surface;
 
       if(pipelineCache)
       {
@@ -524,6 +541,15 @@ namespace vgl
         return currentTransferCommandBuffer;
       else
         return beginTransferCommands();
+    }
+
+    void VulkanInstance::recreateSwapChain()
+    {
+      vkDeviceWaitIdle(device);
+
+      surface->updateDimensions();
+      delete swapChain;
+      setupSwapChain();
     }
 
     pair<VkCommandBuffer, VkFence> VulkanInstance::beginTransferCommands()

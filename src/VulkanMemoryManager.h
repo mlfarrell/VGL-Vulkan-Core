@@ -22,11 +22,79 @@ limitations under the License.
 #include <mutex>
 #include "vulkan.h"
 
+#ifdef VGL_VULKAN_CORE_USE_VMA
+#include "vk_mem_alloc.h"
+#endif
+
 namespace vgl
 {
   namespace core
   {
-    ///This class will get more advanced as time passes... 
+#ifdef VGL_VULKAN_CORE_USE_VMA
+    class VulkanMemoryManager
+    {
+    public:
+      VulkanMemoryManager(VkPhysicalDevice physicalDevice, VkDevice device);
+      ~VulkanMemoryManager();
+
+      static const uint64_t Any = 0;
+
+      struct Suballocation
+      {
+      public:
+        VmaAllocation allocation;
+        VkResult allocationResult;
+
+        Suballocation() = default;
+        Suballocation(nullptr_t null) : allocationResult(VK_NOT_READY) {}
+        void operator =(nullptr_t null) { allocationResult = VK_NOT_READY; }
+        operator bool() const { return (allocationResult == VK_SUCCESS); }
+        bool operator !() const { return (allocationResult != VK_SUCCESS); }
+      };
+
+      struct AllocationInfo
+      {
+        uint64_t allocationId;
+        VkDeviceMemory memory;
+        VkDeviceSize offset;
+
+        uint32_t size; //size in bytes
+        uint32_t memoryType;
+      };
+
+      Suballocation allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId=Any);
+      Suballocation allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId=Any);
+      void free(const Suballocation &suballocation);
+
+      void bindMemory(VkBuffer buffer, Suballocation alloc);
+      void bindMemory(VkImage image, Suballocation alloc);
+
+      AllocationInfo getAllocationInfo(Suballocation alloc);
+
+      void reclaimMemory();
+
+      std::pair<VmaPool, uint64_t> allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize blockSize, 
+        size_t maxBlocks, bool allowSuballocation=true, bool imageOptimal=false);
+
+      bool isAllocationCoherent(const Suballocation &suballocation);
+      bool isAllocationTypeCoherent(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+      void dumpAllocationsInfo();
+    protected:
+      VmaAllocator allocator;
+
+      //only used for (rare) dedicated allocations
+      static const int maxPools = 16;
+      VmaPool pools[maxPools];
+
+      VkPhysicalDeviceMemoryProperties memoryProperties;
+
+      uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
+      void makePool(uint64_t allocationId, uint32_t memoryTypeIndex, VkDeviceSize blockSize, size_t maxAllocations);
+    };
+#else
+    //This class serves a a reasonably robust educational tool on how to roll your own memory manager
+    //it isn't perfect, but helps cut down on dependencies to get you off the ground quickly
     class VulkanMemoryManager
     {
     public:
@@ -102,8 +170,26 @@ namespace vgl
         bool operator !() const { return (memory == VK_NULL_HANDLE); }
       };
 
-      Suballocation allocate(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment=0, bool imageOptimal=false, uint64_t allocationId=Any);
-      //Suballocation allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment=0, bool imageOptimal=false);
+      struct AllocationInfo
+      {
+        uint64_t allocationId;
+        VkDeviceMemory memory;
+        VkDeviceSize offset;
+
+        uint32_t size; //size in bytes
+        uint32_t memoryType;
+      };
+
+      Suballocation allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId=Any);
+      Suballocation allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId=Any);
+
+      void bindMemory(VkBuffer buffer, Suballocation alloc);
+      void bindMemory(VkImage image, Suballocation alloc);
+
+      AllocationInfo getAllocationInfo(Suballocation alloc);
+
+      Suballocation allocate(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment=0,
+        bool imageOptimal=false, uint64_t allocationId=Any);
       void free(const Suballocation &suballocation);
 
       ///If free mode is set to AT_MANUAL, you'll need to call this before any actual Vulkan allocations are freed.  
@@ -112,13 +198,15 @@ namespace vgl
 
       ///When using this function, the caller is entirely responsible for the returned memory object
       VkDeviceMemory allocateDirect(uint32_t memoryType, VkDeviceSize requiredSize, bool imageOptimal=false);   
-      std::pair<VkDeviceMemory, uint64_t> allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize requiredSize, bool allowSuballocation=true, bool imageOptimal=false);
+      std::pair<VkDeviceMemory, uint64_t> allocateDedicated(uint32_t typeFilter, VkMemoryPropertyFlags properties, VkDeviceSize blockSize, 
+        size_t maxBlocks, bool allowSuballocation=true, bool imageOptimal=false);
 
       ///Utilities to determine what kind of memory properties a suballocation has //////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
       ///If an allocation is coherent, it is not necessary to manually flush for CPU-made changes to reflect on the GPU
       bool isAllocationCoherent(const Suballocation &suballocation);
       bool isAllocationCoherent(uint64_t allocationId);
+      bool isAllocationTypeCoherent(uint32_t typeFilter, VkMemoryPropertyFlags properties);
       bool isAllocationHostCached(const Suballocation &suballocation);
       bool isAllocationHostCached(uint64_t allocationId);
       bool isAllocationHostVisible(const Suballocation &suballocation);
@@ -126,8 +214,7 @@ namespace vgl
       bool isAllocationDeviceLocal(const Suballocation &suballocation);
       bool isAllocationDeviceLocal(uint64_t allocationId);
 
-      ///Returns the size in bytes of a given suballocation
-      VkDeviceSize getAllocationSize(const Suballocation &suballocation);
+      void dumpAllocationsInfo();
 
     protected:
       static const int pageSize = 4096;
@@ -144,7 +231,7 @@ namespace vgl
       Suballocation findSuballocation(uint32_t memoryType, VkDeviceSize requiredSize, VkDeviceSize requiredAlignment, AllocationType type, bool imageOptimal, uint64_t allocationId);
       void cleanupAllocations();
 
-      std::pair<VkDeviceMemory, uint64_t> allocateDedicated(uint32_t memoryType, VkDeviceSize requiredSize, bool allowSuballocation = true, bool imageOptimal = false);
+      std::pair<VkDeviceMemory, uint64_t> allocateDedicated(uint32_t memoryType, VkDeviceSize requiredSize, bool allowSuballocation=true, bool imageOptimal=false);
 
       VkPhysicalDevice physicalDevice;
       VkPhysicalDeviceMemoryProperties memoryProperties;
@@ -163,5 +250,6 @@ namespace vgl
       //std::vector<Subregion> subregionPools[VK_MAX_MEMORY_TYPES];
       uint64_t allocationIds = 1, subregionIds = 1, ai = 0, invalidatedSubregionIds = 0;
     };
+#endif
   }
 }

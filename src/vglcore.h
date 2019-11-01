@@ -17,8 +17,27 @@ limitations under the License.
 
 #pragma once
 
+#ifndef VGL_VULKAN_CORE_STANDALONE
+#define VGL_VULKAN_USE_SPIRV_CROSS
+#define VGL_VULKAN_CORE_USE_VMA
+#endif
+
 #include "VulkanShaderProgram.h"
 #include "VulkanTexture.h"
 #include "VulkanBufferGroup.h"
 #include "VulkanVertexArray.h"
 #include "VulkanFrameBuffer.h"
+
+#ifdef DEBUG
+#define VGL_CORE_PERF_WARNING_DEBUG(failCondition, message) \
+{                                                           \
+  static bool warned = false;                               \
+  if((failCondition) && !warned)                              \
+  {                                                         \
+    verr << "VGL Performance Warning:  " << message << endl;\
+    warned = true;                                          \
+  }                                                         \
+}
+#else
+#define VGL_CORE_PERF_WARNING_DEBUG(...)
+#endif
