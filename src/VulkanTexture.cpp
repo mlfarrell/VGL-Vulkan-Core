@@ -795,7 +795,7 @@ namespace vgl
         if(hasStencilComponent(format))
         {
           barrier.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
-          isStencil = true;
+          //isStencil = true;
         }
       }
       else
@@ -1032,7 +1032,7 @@ namespace vgl
         createInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_COLOR_BIT;
       if(isDepth)
         createInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_DEPTH_BIT;
-      if(isStencil)
+      else if(isStencil)
         createInfo.subresourceRange.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
       createInfo.subresourceRange.baseMipLevel = 0;
       createInfo.subresourceRange.levelCount = numMipLevels;

@@ -34,14 +34,28 @@ namespace vgl
 #ifdef VGL_VULKAN_CORE_USE_VMA
     VulkanMemoryManager::VulkanMemoryManager(VkPhysicalDevice physicalDevice, VkDevice device)
     {
+      auto instanceHasDedicatedAlloc = [] {
+        const auto &enabledExt = VulkanInstance::currentInstance().getEnabledDeviceExtensions();
+        auto ext1 = find_if(enabledExt.begin(), enabledExt.end(), [](const char *ext) {
+          return ((string)ext == VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+        });
+        auto ext2 = find_if(enabledExt.begin(), enabledExt.end(), [](const char *ext) {
+          return ((string)ext == VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
+        });
+        
+        return (ext1 != enabledExt.end() && ext2 != enabledExt.end());
+      };
+        
       VmaAllocatorCreateInfo allocatorInfo = {};
 
       allocatorInfo.physicalDevice = physicalDevice;
       allocatorInfo.device = device;
+      if(instanceHasDedicatedAlloc())
+        allocatorInfo.flags |= VMA_ALLOCATOR_CREATE_KHR_DEDICATED_ALLOCATION_BIT;
       vmaCreateAllocator(&allocatorInfo, &allocator);
 
       vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
-      memset(pools, 0, sizeof(VmaPool)*maxPools);
+      memset(pools, 0, sizeof(VmaPool)*MaxPools);
     }
 
     void VulkanMemoryManager::makePool(uint64_t allocationId, uint32_t memoryTypeIndex, VkDeviceSize blockSize, size_t maxAllocations)
@@ -90,7 +104,7 @@ namespace vgl
       auto getFreePool = [=]() -> uint64_t {
         uint64_t poolIndex = 0;
 
-        for(poolIndex = 0; poolIndex < maxPools; poolIndex++)
+        for(poolIndex = 0; poolIndex < MaxPools; poolIndex++)
         {
           if(!pools[poolIndex])
             return poolIndex+1;
@@ -185,7 +199,7 @@ namespace vgl
 
     VulkanMemoryManager::~VulkanMemoryManager()
     {
-      for(int i = 0; i < maxPools; i++) if(pools[i])
+      for(int i = 0; i < MaxPools; i++) if(pools[i])
         vmaDestroyPool(allocator, pools[i]);
       vmaDestroyAllocator(allocator);
     }

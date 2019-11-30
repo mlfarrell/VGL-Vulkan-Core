@@ -83,6 +83,10 @@ namespace vgl
       inline void setParentRenderer(void *renderer) { parentRenderer = renderer; }
       inline void *getParentRenderer() { return parentRenderer; }
 
+      ///Find out which instance/device extensions have been enabled for vulkan
+      inline const std::vector<const char *> &getEnabledInstanceExtensions() { return instanceExtensions; }
+      inline const std::vector<const char *> &getEnabledDeviceExtensions() { return deviceExtensions; }
+
       ///Useful for temporarily getting around bugs in vulkan validation layers (I use breakpoints to debug these)
       static void enableValidationReports(bool b);
 
@@ -109,6 +113,7 @@ namespace vgl
 
       void getRequiredInstanceExtensions();
       void getRequiredDeviceExtensions();
+      void checkOptionalDeviceExtensions();
       void setupDefaultDevice();
       void setupLogicalDevice();
       void setupSurface();
@@ -120,7 +125,8 @@ namespace vgl
 
       std::vector<const char *> validationLayers;
       std::vector<const char *> instanceExtensions;
-      std::vector<const char *> requiredInstanceExtensions, requiredDeviceExtensions;
+      std::vector<const char *> deviceExtensions;
+      std::vector<const char *> requiredInstanceExtensions, requiredDeviceExtensions, optionalDeviceExtensions;
       VkDebugReportCallbackEXT msgCallback = NULL;
 
       bool validationEnabled = false;

@@ -135,6 +135,7 @@ private:
   void initCommonLayoutsAndSets();
   void recoverFromDescriptorPoolOverflow();
   void recoverFromDynamicUBOOverflow();
+  void recreateSwapchainFrameBuffers();
 
   core::VulkanInstance *instance;
   core::VulkanFrameBuffer *swapchainFramebuffers, *currentFramebuffer = nullptr, *currentRenderFramebuffer = nullptr;
@@ -146,6 +147,7 @@ private:
   core::VulkanDescriptorSetLayout *commonDSLayout1A, *commonDSLayout1B;
   core::VulkanDescriptorPool *commonDSPoolA, *commonDSPoolB, *currentRenderPool = nullptr;
   core::VulkanTexture *textureBindings2D[16];
+  core::VulkanTexture *undefinedTexture = nullptr, *undefinedCubemap = nullptr;
   uint16_t textureBindingBits2D = 0, maxTextureBinding2D = 0;
   VkPipelineLayout commonPLLayout1;
   VkDescriptorSet dynamicUboSets[3];
@@ -153,7 +155,7 @@ private:
   VkCommandBuffer currentSwapchainCommandBuffer;
   bool renderingOffscreenFramebuffer = false;
 
-  void copySet1DS();
+  void updateSet1DS();
 
   std::atomic_bool resourceThreadEnabled;
   std::thread *resourceThread;

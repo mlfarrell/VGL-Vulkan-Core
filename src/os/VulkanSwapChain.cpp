@@ -65,8 +65,16 @@ namespace vgl
       if(msaaDepthTarget)
         delete msaaDepthTarget;
     }
-
+  
     uint32_t VulkanSwapChain::acquireNextImage()
+    {
+      uint32_t imageIndex = 0;
+      if(!acquireNextImage(imageIndex))
+        verr << "Warning:  vulkan acquireNextImage() failed!" << endl;
+      return imageIndex;
+    }
+
+    bool VulkanSwapChain::acquireNextImage(uint32_t &imageIndex)
     {
       if(frameIds[currentFrame])
       {
@@ -75,15 +83,16 @@ namespace vgl
         completeFrame(frameIds[currentFrame]);
       }
       frameIds[currentFrame] = getNewFrameId();
-
-      uint32_t imageIndex;
-      if(vkAcquireNextImageKHR(swapchainDevice, swapChain, numeric_limits<uint64_t>::max(), imageAvailableSemaphores[currentFrame],
-        VK_NULL_HANDLE, &imageIndex) != VK_SUCCESS)
+        
+      VkResult result = vkAcquireNextImageKHR(swapchainDevice, swapChain, numeric_limits<uint64_t>::max(), imageAvailableSemaphores[currentFrame],
+                          VK_NULL_HANDLE, &imageIndex);
+      
+      if(result != VK_SUCCESS)
       {
-        return 0;
+        return false;
       }
 
-      return imageIndex;
+      return true;
     }
 
     void VulkanSwapChain::submitCommands(VkCommandBuffer commandBuffer, bool waitOnImageAcquire)
@@ -132,7 +141,6 @@ namespace vgl
       {
         if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
         {
-          instance->recreateSwapChain();
           return false;
         }
         else

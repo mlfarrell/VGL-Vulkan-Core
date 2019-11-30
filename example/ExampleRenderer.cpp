@@ -15,6 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "pch.h"
+#include <cassert>
 #include <algorithm>
 #include "ExampleRenderer.h"
 #include "VulkanInstance.h"
@@ -65,6 +66,14 @@ ExampleRenderer::ExampleRenderer()
   initPipelineState();
   initResourceMonitorThread();
   initCommonLayoutsAndSets();
+
+  uint8_t zero[4] = { 0 };
+  undefinedTexture = new VulkanTexture(VulkanTexture::TT_2D);
+  undefinedTexture->imageData(1, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, zero, sizeof(zero));
+  setTextureBinding2D(undefinedTexture, 0);
+  undefinedCubemap = new VulkanTexture(VulkanTexture::TT_CUBE_MAP);
+  for(int i = 0; i < 6; i++)
+    undefinedCubemap->imageData(1, 1, 1, VK_FORMAT_R8G8B8A8_UNORM, zero, sizeof(zero), i);
 }
 
 ExampleRenderer::~ExampleRenderer()
@@ -76,6 +85,8 @@ ExampleRenderer::~ExampleRenderer()
   if(commonPLLayout1)
     vkDestroyPipelineLayout(instance->getDefaultDevice(), commonPLLayout1, nullptr);
 
+  delete undefinedTexture;
+  delete undefinedCubemap;
   delete dynamicUbos;
   delete commonDSPoolA;
   delete commonDSPoolB;
@@ -195,20 +206,45 @@ void ExampleRenderer::initCommonLayoutsAndSets()
     throw vgl_runtime_error("Failed to allocate common pipeline descriptor sets!");
 }
 
-void ExampleRenderer::copySet1DS()
+void ExampleRenderer::updateSet1DS()
 {
-  VkCopyDescriptorSet copy = {};
-  copy.sType = VK_STRUCTURE_TYPE_COPY_DESCRIPTOR_SET;
+  VkWriteDescriptorSet writes[20];
+  VkDescriptorImageInfo imageInfo[16];
+  int numWrites = 0;
 
-  copy.srcSet = templateState1DS;
-  copy.srcBinding = 0;
-  copy.srcArrayElement = 0;
-  copy.dstSet = currentSet1DS;
-  copy.dstBinding = 0;
-  copy.dstArrayElement = 0;
-  copy.descriptorCount = maxTextureBinding2D+1;
+  for(int i = 0; i < maxTextureBinding2D+1; i++)
+  {
+    if(textureBindings2D[i])
+    {
+      textureBindings2D[i]->putDescriptor(writes[numWrites], imageInfo[i], currentSet1DS, i);
+    }
+    else
+    {
+      undefinedTexture->putDescriptor(writes[numWrites], imageInfo[i], currentSet1DS, i);
+    }
+    numWrites++;
+  }
 
-  vkUpdateDescriptorSets(instance->getDefaultDevice(), 0, nullptr, 1, &copy);
+  /*
+  VkDescriptorBufferInfo bufferInfo[4];
+
+  if(currentShaders->getPipelineLayout() == commonPLLayout2)
+  {
+    for(int i = 0; i < maxUboBinding+1; i++)
+    {
+      if(uboBindings[i])
+      {
+        uboBindings[i]->putDescriptor(writes[numWrites], bufferInfo[i], 0, currentSet1DS, 16+i);
+      }
+      else
+      {
+        undefinedUbo->putDescriptor(writes[numWrites], bufferInfo[i], 0, currentSet1DS, 16+i);
+      }
+      numWrites++;
+    }
+  }*/
+
+  vkUpdateDescriptorSets(instance->getDefaultDevice(), numWrites, writes, 0, nullptr);
 }
 
 void ExampleRenderer::setBlendFuncSourceFactor(BlendFactor srcFactor, BlendFactor dstFactor)
@@ -311,6 +347,34 @@ void ExampleRenderer::setCubemapBinding(VulkanTexture *tex, int binding)
 
 void ExampleRenderer::preparePipelineForCoreState(VkCommandBuffer commandBuffer)
 {
+  if(clTextureSetDirty && textureBindingBits2D)
+  {
+    if(currentRenderPool)
+    {
+      auto srcDSLayout = commonDSLayout1B;
+
+      if(!currentRenderPool->simpleAllocate(1, srcDSLayout, &currentSet1DS))
+      {
+        recoverFromDescriptorPoolOverflow();
+
+        if(!currentRenderPool->simpleAllocate(1, srcDSLayout, &currentSet1DS))
+          throw vgl_runtime_error("Unable to allocate descriptor sets required for Vulkan frame");
+      }
+
+      clTextureBindingsDirty = true;
+    }
+
+    updateSet1DS();
+    clTextureSetDirty = false;
+  }
+
+  if(clTextureBindingsDirty)
+  {
+    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentShaders->getPipelineLayout(), 1, 1,
+      &currentSet1DS, 0, nullptr);
+    clTextureBindingsDirty = false;
+  }
+
   if(psoDirty)
   {
     currentPipeline = currentShaders->pipelineForState(pipelineState, currentFramebuffer);
@@ -411,31 +475,6 @@ void ExampleRenderer::prepareToDraw()
       &dynamicUboSets[currentFrameImage], 1, &currentDynamicUboOffset);
     clDynamicUboDirty = false;
   }
-
-  if(clTextureSetDirty && textureBindingBits2D)
-  {
-    if(currentRenderPool)
-    {
-      if(!currentRenderPool->simpleAllocate(1, commonDSLayout1B, &currentSet1DS))
-      {
-        recoverFromDescriptorPoolOverflow();
-
-        if(!currentRenderPool->simpleAllocate(1, commonDSLayout1B, &currentSet1DS))
-          throw vgl_runtime_error("Unable to allocate descriptor sets required for Vulkan frame");
-      }
-      clTextureBindingsDirty = true;
-    }
-
-    copySet1DS();
-    clTextureSetDirty = false;
-  }
-
-  if(clTextureBindingsDirty)
-  {
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentShaders->getPipelineLayout(), 1, 1, 
-      &currentSet1DS, 0, nullptr);
-    clTextureBindingsDirty = false;
-  }
 }
 
 void ExampleRenderer::waitForRender()
@@ -450,14 +489,24 @@ void ExampleRenderer::presentAndSwapBuffers(bool waitForFrame)
 {
   if(!instance->getSwapChain()->presentImage(currentFrameImage))
   {
-    //swapchain out of date?  no idea what to do here yet
-    throw runtime_error("Vulkan swapchain out of date (no handler for this yet)");
+    //swapchain is out of date
+    instance->recreateSwapChain();
+    recreateSwapchainFrameBuffers();
   }
   previousFrameImage = currentFrameImage;
   currentFrameImage = -1;
 
   if(waitForFrame)
     waitForRender();
+}
+
+void ExampleRenderer::recreateSwapchainFrameBuffers()
+{
+  delete swapchainFramebuffers;
+  swapchainFramebuffers = new VulkanFrameBuffer(instance->getSwapChain(), true);
+  swapchainFramebuffers->setShouldInvertViewport(true);
+  setRenderTarget(swapchainFramebuffers);
+  currentFrameImage = -1;
 }
 
 int ExampleRenderer::getLastRenderedSwapchainImageIndex()
@@ -719,7 +768,15 @@ void ExampleRenderer::beginFrame()
   if(auto transfer = instance->getCurrentTransferCommandBuffer().first)
     endSetup(false);
 
-  uint32_t i = instance->getSwapChain()->acquireNextImage();
+  uint32_t i;
+  
+  if(!instance->getSwapChain()->acquireNextImage(i))
+  {
+    //swapchain is out of date
+    instance->recreateSwapChain();
+    recreateSwapchainFrameBuffers();
+    assert(instance->getSwapChain()->acquireNextImage(i));
+  }
 
   auto commandBuffer = swapchainFramebuffers->getCommandBuffer(i);
 

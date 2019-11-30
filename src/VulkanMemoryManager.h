@@ -84,8 +84,8 @@ namespace vgl
       VmaAllocator allocator;
 
       //only used for (rare) dedicated allocations
-      static const int maxPools = 16;
-      VmaPool pools[maxPools];
+      static const int MaxPools = 16;
+      VmaPool pools[MaxPools];
 
       VkPhysicalDeviceMemoryProperties memoryProperties;
 
@@ -93,7 +93,7 @@ namespace vgl
       void makePool(uint64_t allocationId, uint32_t memoryTypeIndex, VkDeviceSize blockSize, size_t maxAllocations);
     };
 #else
-    //This class serves a a reasonably robust educational tool on how to roll your own memory manager
+    //This class serves as a reasonably robust educational tool on how to roll your own memory manager
     //it isn't perfect, but helps cut down on dependencies to get you off the ground quickly
     class VulkanMemoryManager
     {

@@ -41,7 +41,7 @@ namespace vgl
       VulkanSwapChain(VulkanInstance *instance, VulkanSurface *surface);
       ~VulkanSwapChain();
 
-      uint32_t acquireNextImage();
+      bool acquireNextImage(uint32_t &imageIndex);
       void submitCommands(VkCommandBuffer commandBuffer, bool waitOnImageAcquire=true);
       bool presentImage(uint32_t imageIndex);
       bool submitAndPresent(VkCommandBuffer commandBuffer, uint32_t imageIndex);
@@ -66,6 +66,7 @@ namespace vgl
 
       inline uint64_t getCurrentFrameId() { return frameId; }
 
+      [[deprecated]] uint32_t acquireNextImage();
     protected:
       static const int MAX_FRAMES_IN_FLIGHT = 2;
       int currentFrame = 0, lastSubmittedFrame = -1;

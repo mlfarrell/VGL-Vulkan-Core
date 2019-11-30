@@ -85,7 +85,8 @@ namespace vgl
       {
         vkBuffers[i] = bufferBindings[i]->get(bufferBindingIndices[i]);
       }
-      vkCmdBindVertexBuffers(commandBuffer, 0, numBindings, vkBuffers, offsets);
+      if(numBindings)
+        vkCmdBindVertexBuffers(commandBuffer, 0, numBindings, vkBuffers, offsets);
     }
 
     int VulkanVertexArray::getNumBindings() 

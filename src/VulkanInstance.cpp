@@ -54,7 +54,7 @@ namespace vgl
 
     VulkanInstance::VulkanInstance()
     {
-#if (defined DEBUG || defined FORCE_VALIDATION) && (!defined MACOSX) && (!defined TARGET_OS_IPHONE)//validation doesn't work on apple yet
+#if (defined DEBUG || defined FORCE_VALIDATION) && (!defined MACOSX) && (!defined TARGET_OS_IPHONE) //validation doesn't work on apple yet
       validationEnabled = true;
 
       validationLayers.push_back("VK_LAYER_LUNARG_standard_validation");
@@ -178,6 +178,27 @@ namespace vgl
       requiredDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
       requiredDeviceExtensions.push_back(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
       //requiredDeviceExtensions.push_back(VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME);
+        
+      //disabling for now (these cause validation errors with my buffers, will look into later..)
+      //optionalDeviceExtensions.push_back(VK_KHR_GET_MEMORY_REQUIREMENTS_2_EXTENSION_NAME);
+      //optionalDeviceExtensions.push_back(VK_KHR_DEDICATED_ALLOCATION_EXTENSION_NAME);
+    }
+  
+    void VulkanInstance::checkOptionalDeviceExtensions()
+    {
+      uint32_t extensionCount;
+      vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, nullptr);
+      vector<VkExtensionProperties> availableExtensions(extensionCount);
+      vkEnumerateDeviceExtensionProperties(physicalDevice, nullptr, &extensionCount, availableExtensions.data());
+        
+      for(const auto &extension : availableExtensions)
+      {
+        for(const char *ext : optionalDeviceExtensions)
+        {
+          if((string)extension.extensionName == ext)
+            requiredDeviceExtensions.push_back(ext);
+        }
+      }
     }
 
     void VulkanInstance::setupDefaultDevice()
@@ -365,7 +386,10 @@ namespace vgl
       createInfo.queueCreateInfoCount = 1;
       createInfo.pEnabledFeatures = &deviceFeatures;
 
-      createInfo.enabledExtensionCount = (uint32_t)requiredDeviceExtensions.size();
+      checkOptionalDeviceExtensions();
+      copy(requiredDeviceExtensions.begin(), requiredDeviceExtensions.end(), back_inserter(deviceExtensions));
+
+      createInfo.enabledExtensionCount = (uint32_t)deviceExtensions.size();
       createInfo.ppEnabledExtensionNames = requiredDeviceExtensions.data();
 
       if(validationEnabled)
