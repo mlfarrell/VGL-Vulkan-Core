@@ -20,8 +20,6 @@
 		27DA99C821C8871400EF84EA /* VulkanTestingMac.mm in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99C321C8871400EF84EA /* VulkanTestingMac.mm */; };
 		27DA99C921C8871400EF84EA /* Example.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99C421C8871400EF84EA /* Example.cpp */; };
 		27DA99F621C8872600EF84EA /* VulkanDescriptorPool.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99CA21C8872400EF84EA /* VulkanDescriptorPool.cpp */; };
-		27DA99F821C8872600EF84EA /* VulkanSwapChain.mm in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99D121C8872400EF84EA /* VulkanSwapChain.mm */; };
-		27DA99F921C8872600EF84EA /* VulkanSwapChainBase.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99D421C8872400EF84EA /* VulkanSwapChainBase.cpp */; };
 		27DA99FA21C8872600EF84EA /* VulkanPipeline.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99D521C8872400EF84EA /* VulkanPipeline.cpp */; };
 		27DA99FB21C8872600EF84EA /* VulkanExtensionLoader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99D921C8872400EF84EA /* VulkanExtensionLoader.cpp */; };
 		27DA99FC21C8872600EF84EA /* VulkanMemoryManager.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27DA99DC21C8872400EF84EA /* VulkanMemoryManager.cpp */; };
@@ -42,6 +40,8 @@
 		27DA9A0E21C88A8600EF84EA /* libshaderc_combined.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 27DA9A0D21C88A8600EF84EA /* libshaderc_combined.a */; };
 		27DA9A0F21C88AAF00EF84EA /* libvulkan.1.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27DA9A0B21C887EB00EF84EA /* libvulkan.1.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		27DA9A1021C88AB100EF84EA /* libMoltenVK.dylib in CopyFiles */ = {isa = PBXBuildFile; fileRef = 27DA9A0921C887C700EF84EA /* libMoltenVK.dylib */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		27E02077236CD31E00A219A2 /* VulkanSwapChain.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 27E02076236CD31E00A219A2 /* VulkanSwapChain.cpp */; };
+		27E0207A236CD32A00A219A2 /* VulkanSurface.mm in Sources */ = {isa = PBXBuildFile; fileRef = 27E02078236CD32A00A219A2 /* VulkanSurface.mm */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -90,10 +90,6 @@
 		27DA99C621C8871400EF84EA /* ExampleModelData.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = ExampleModelData.h; path = ../../../ExampleModelData.h; sourceTree = "<group>"; };
 		27DA99CA21C8872400EF84EA /* VulkanDescriptorPool.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = VulkanDescriptorPool.cpp; path = ../../../../../src/VulkanDescriptorPool.cpp; sourceTree = "<group>"; };
 		27DA99CB21C8872400EF84EA /* VulkanExtensionLoader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VulkanExtensionLoader.h; path = ../../../../../src/VulkanExtensionLoader.h; sourceTree = "<group>"; };
-		27DA99D121C8872400EF84EA /* VulkanSwapChain.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = VulkanSwapChain.mm; sourceTree = "<group>"; };
-		27DA99D221C8872400EF84EA /* VulkanSwapChain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VulkanSwapChain.h; sourceTree = "<group>"; };
-		27DA99D321C8872400EF84EA /* VulkanSwapChainBase.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VulkanSwapChainBase.h; sourceTree = "<group>"; };
-		27DA99D421C8872400EF84EA /* VulkanSwapChainBase.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = VulkanSwapChainBase.cpp; sourceTree = "<group>"; };
 		27DA99D521C8872400EF84EA /* VulkanPipeline.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = VulkanPipeline.cpp; path = ../../../../../src/VulkanPipeline.cpp; sourceTree = "<group>"; };
 		27DA99D621C8872400EF84EA /* VulkanAsyncResourceHandle.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VulkanAsyncResourceHandle.h; path = ../../../../../src/VulkanAsyncResourceHandle.h; sourceTree = "<group>"; };
 		27DA99D721C8872400EF84EA /* VulkanPipelineState.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = VulkanPipelineState.h; path = ../../../../../src/VulkanPipelineState.h; sourceTree = "<group>"; };
@@ -130,6 +126,10 @@
 		27DA9A0921C887C700EF84EA /* libMoltenVK.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libMoltenVK.dylib; sourceTree = SOURCE_ROOT; };
 		27DA9A0B21C887EB00EF84EA /* libvulkan.1.dylib */ = {isa = PBXFileReference; lastKnownFileType = "compiled.mach-o.dylib"; path = libvulkan.1.dylib; sourceTree = SOURCE_ROOT; };
 		27DA9A0D21C88A8600EF84EA /* libshaderc_combined.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; path = libshaderc_combined.a; sourceTree = "<group>"; };
+		27E02075236CD31E00A219A2 /* VulkanSwapChain.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VulkanSwapChain.h; sourceTree = "<group>"; };
+		27E02076236CD31E00A219A2 /* VulkanSwapChain.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = VulkanSwapChain.cpp; sourceTree = "<group>"; };
+		27E02078236CD32A00A219A2 /* VulkanSurface.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; path = VulkanSurface.mm; sourceTree = "<group>"; };
+		27E02079236CD32A00A219A2 /* VulkanSurface.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = VulkanSurface.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -265,9 +265,9 @@
 		27DA99CC21C8872400EF84EA /* os */ = {
 			isa = PBXGroup;
 			children = (
+				27E02076236CD31E00A219A2 /* VulkanSwapChain.cpp */,
+				27E02075236CD31E00A219A2 /* VulkanSwapChain.h */,
 				27DA99D021C8872400EF84EA /* mac */,
-				27DA99D321C8872400EF84EA /* VulkanSwapChainBase.h */,
-				27DA99D421C8872400EF84EA /* VulkanSwapChainBase.cpp */,
 			);
 			name = os;
 			path = ../../../../../src/os;
@@ -276,8 +276,8 @@
 		27DA99D021C8872400EF84EA /* mac */ = {
 			isa = PBXGroup;
 			children = (
-				27DA99D121C8872400EF84EA /* VulkanSwapChain.mm */,
-				27DA99D221C8872400EF84EA /* VulkanSwapChain.h */,
+				27E02079236CD32A00A219A2 /* VulkanSurface.h */,
+				27E02078236CD32A00A219A2 /* VulkanSurface.mm */,
 			);
 			path = mac;
 			sourceTree = "<group>";
@@ -356,8 +356,8 @@
 			files = (
 				27DA9A0321C8872600EF84EA /* VulkanVertexArray.cpp in Sources */,
 				27DA99C921C8871400EF84EA /* Example.cpp in Sources */,
+				27E0207A236CD32A00A219A2 /* VulkanSurface.mm in Sources */,
 				27DA99C821C8871400EF84EA /* VulkanTestingMac.mm in Sources */,
-				27DA99F921C8872600EF84EA /* VulkanSwapChainBase.cpp in Sources */,
 				27DA9A0721C8872600EF84EA /* VulkanTexture.cpp in Sources */,
 				27DA9A0821C8872600EF84EA /* VulkanDescriptorSetLayout.cpp in Sources */,
 				27DA99FE21C8872600EF84EA /* VulkanFrameBuffer.cpp in Sources */,
@@ -372,9 +372,9 @@
 				27DA9A0221C8872600EF84EA /* VulkanInstance.cpp in Sources */,
 				27DA99FA21C8872600EF84EA /* VulkanPipeline.cpp in Sources */,
 				27DA99FC21C8872600EF84EA /* VulkanMemoryManager.cpp in Sources */,
-				27DA99F821C8872600EF84EA /* VulkanSwapChain.mm in Sources */,
 				27DA9A0521C8872600EF84EA /* VulkanAsyncResourceHandle.cpp in Sources */,
 				27DA99C721C8871400EF84EA /* ExampleRenderer.cpp in Sources */,
+				27E02077236CD31E00A219A2 /* VulkanSwapChain.cpp in Sources */,
 				27DA99F621C8872600EF84EA /* VulkanDescriptorPool.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

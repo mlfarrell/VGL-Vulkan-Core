@@ -60,8 +60,6 @@ Then, open the Example.xcode Project and build.
 
 ## How Can I Help?
 
-- Swapchain resizing-recreation isn't handled correctly yet.  
-
 - The core currently lacks the ability to compile GLSL 150 and auto-convert to vulkan-enabled GLSL 450.  Currently my higher-level engine implements this (on top of this core) using tons of regex which is a giant hack.  I'd like to have a more graceful solution to this.
 
 - Rendering performant OpenGL-style thick lines WITHOUT using a geometry shader would be a nice addition.
