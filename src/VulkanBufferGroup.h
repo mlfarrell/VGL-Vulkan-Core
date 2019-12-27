@@ -39,7 +39,7 @@ namespace vgl
       ///Returns the underlying vulkan buffer
       VkBuffer get(int bufferIndex);
 
-      enum UsageType { UT_VERTEX=0, UT_INDEX, UT_UNIFORM, UT_UNIFORM_DYNAMIC };
+      enum UsageType { UT_VERTEX=0, UT_INDEX, UT_UNIFORM, UT_UNIFORM_DYNAMIC, UT_SHADER_STORAGE };
       inline void setUsageType(UsageType ut) { usageType = ut; }
 
       inline int getNumBuffers() { return bufferCount; }
@@ -54,6 +54,12 @@ namespace vgl
 
       ///True if this texture is currently resident on the device
       inline bool isDeviceResident() { return isResident; }
+      
+      ///Tentative API for auto-reclaiming staging memory after used by data().
+      ///Only has an effect on device local buffers & non-persistently mapped buffers.
+      ///Disabling can save some CPU overhead if you're calling data() very frequently.
+      ///Currently, the default behavior is true
+      void setAutomaticallyReleaseStagingMemory(bool b);
 
       ///If this is true, the entire buffer group's memory allocation will be come from this one dedicated allocation
       ///For now, this is required to be set if persistent mapping is desired.  This must be set
@@ -72,11 +78,18 @@ namespace vgl
       ///Pass a non-null command buffer to use it (instead of creating one from command pool) to transfer.  
       ///Pass frame=true to attach resources to the current framebuffer/swapchain frame
       void data(int bufferIndex, const void *data, size_t numBytes, VkCommandBuffer transferCommandBuffer=nullptr, bool frame=false);
+      
+      ///Gets data back from a buffer by copying it to host memory (exposing only this for now instead of direct mapped ptr access)
+      ///readback must be explicitly enabled prior to calling data() before this can be used.
+      void readData(int bufferIndex, void *data, size_t numBytes);
+
+      ///Readback must be enabled before data() if getData() will be called on this buffer group
+      void setReadbackEnabled(bool enabled);
 
       ///Copies data into this buffer from another buffer
-      void copyDataFrom(VulkanBufferGroup *srcGroup, int srcBufferIndex, int targetBufferIndex, size_t sizeInBytes, 
+      void copyData(VulkanBufferGroup *srcGroup, int srcBufferIndex, int targetBufferIndex, size_t sizeInBytes, 
         VkCommandBuffer transferCommandBuffer=nullptr, bool frame=false);
-
+      
       ///Binds a buffer from this group for use as an index buffer for indexed-rendering 
       void bindIndices(int bufferIndex, VkCommandBuffer graphicsCommandBuffer, bool shortIndices = false, VkDeviceSize offset=0);
 
@@ -93,6 +106,10 @@ namespace vgl
       ///This only has an affect if the given allocation is host visible AND non coherent (needs to be flushed)
       void flush(int bufferIndex);
 
+      ///It won't be necessary to manually call these methods for most circumstances
+      void pipelineWriteBarrier(int bufferIndex, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkCommandBuffer transferCommandBuffer);
+      void pipelineReadBarrier(int bufferIndex, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkCommandBuffer transferCommandBuffer);
+      
     protected:
       VulkanInstance *instance;
       VkDevice device;
@@ -110,6 +127,8 @@ namespace vgl
       PerBuffer *buffers;
 
       bool stageToDevice = true, stagingBufferDeviceLocal = false;
+      bool autoReleaseStaging = true;
+      bool readbackEnabled = false;
       bool isResident = false;
       int bufferCount;
       UsageType usageType = UT_VERTEX;
@@ -120,8 +139,11 @@ namespace vgl
       VkMemoryPropertyFlagBits dedicatedHostAllocationMemoryFlags;
       void *persistentlyMappedHostMemoryAddress = nullptr;
 
+      void copyFromStaging(int bufferIndex, VkCommandBuffer transferCommandBuffer);
       void copyToStaging(int bufferIndex, VkCommandBuffer transferCommandBuffer);
-      void copyFrom(VulkanBufferGroup *srcBufferGroup, int srcBufferIndex, int destBufferIndex, VkCommandBuffer transferCommandBuffer);
+      void copyFromBuffer(VulkanBufferGroup *srcBufferGroup, int srcBufferIndex, int destBufferIndex, VkCommandBuffer transferCommandBuffer);
+              
+      void releaseStagingBuffers();
     };
 
     typedef VulkanBufferGroup BufferGroup;

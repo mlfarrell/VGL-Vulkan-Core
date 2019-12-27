@@ -138,8 +138,16 @@ namespace vgl
         {
           vout << "Creating new pipeline state object in cache for hash value: " << hashKey << std::endl;
         }*/
+        
+        if(!owner->getComputeShader())
+        {
+          pipelineState = new VulkanPipeline(device, &state, fbo->getRenderPass(), owner, nullptr, owner->getPipelineLayout(), vulkanSystemCache);
+        }
+        else
+        {
+          pipelineState = new VulkanPipeline(device, &state, VK_NULL_HANDLE, owner, nullptr, owner->getPipelineLayout(), vulkanSystemCache);
+        }
 
-        pipelineState = new VulkanPipeline(device, &state, fbo->getRenderPass(), owner, nullptr, owner->getPipelineLayout(), vulkanSystemCache);
         cachedPSOs.insert({ hashKey, { state, pipelineState } });
       }
 

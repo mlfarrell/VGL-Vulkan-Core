@@ -49,6 +49,11 @@ namespace vgl
       ///Pass a non-null command buffer to use it (instead of creating one from command pool) to transfer
       void imageData(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, const void *data, size_t numBytes, uint32_t layerIndex=0, uint32_t level=0, uint32_t numSamples=1, VkCommandBuffer transferCommandBuffer=nullptr);
 
+      ///Tentative API for auto-reclaiming staging memory after used by imageData().
+      ///Disabling can save some CPU overhead & heap-dirtying if you're calling imageData() very frequently.
+      ///Currently, the default behavior is true
+      void setAutomaticallyReleaseStagingMemory(bool b);
+
       ///Initializes the texture image similarly to imageData() but instead leaves the image contents undefined
       enum Usage : uint32_t
       {
@@ -59,7 +64,7 @@ namespace vgl
       void initImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, uint32_t usage=U_SAMPLED_IMAGE, uint32_t layerIndex=0, uint32_t numSamples = 1, VkCommandBuffer transferCommandBuffer=nullptr);
 
       void readImageData(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t layer, uint32_t level, void *data);
-
+      
       enum SamplerFilterType { ST_LINEAR, ST_NEAREST, ST_LINEAR_MIPMAP_LINEAR, ST_LINEAR_MIPMAP_NEAREST };
       void setFilters(SamplerFilterType minFilter, SamplerFilterType magFilter);
       
@@ -140,6 +145,7 @@ namespace vgl
       bool deferImageCreation = false;
       bool isDepth = false, isStencil = false, isShaderRsrc = false, isSwapchainImage = false, stagingBufferTransferDst = false;
       bool isResident = false;
+      bool autoReleaseStaging = true;
 
       SamplerFilterType minFilter = ST_LINEAR, magFilter = ST_LINEAR;
       VkSamplerCreateInfo samplerState;
@@ -159,6 +165,8 @@ namespace vgl
       void copyToImage(uint32_t layerIndex, uint32_t level, VkCommandBuffer transferCommandBuffer);
       void copyFromImage(uint32_t x, uint32_t y, uint32_t width, uint32_t height, uint32_t layerIndex, uint32_t level, VkCommandBuffer transferCommandBuffer, bool wait);
       void generateMipmaps(uint32_t layerIndex, VkCommandBuffer transferCommandBuffer);
+
+      void releaseStagingBuffers();
 
       void safeUnbind();
     };

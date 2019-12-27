@@ -44,6 +44,7 @@ namespace vgl
     protected:
       void create(VkDevice device, const VulkanPipelineState *state, VkRenderPass renderPass,
         VulkanShaderProgram *shader, VulkanVertexArray *vertexArray, VkPipelineLayout layout, VkPipelineCache pipelineCache);
+      void createCompute(VkDevice device, VulkanShaderProgram *shader, VkPipelineLayout layout, VkPipelineCache pipelineCache);
 
       VkDevice device;
       VkPipeline pipeline = VK_NULL_HANDLE;

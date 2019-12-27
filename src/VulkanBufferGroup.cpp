@@ -122,6 +122,7 @@ namespace vgl
       {
         case UT_UNIFORM: write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER; break;
         case UT_UNIFORM_DYNAMIC: write.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC; break;
+        case UT_SHADER_STORAGE: write.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER; break;
         default:  break;
       }
       write.descriptorCount = 1;
@@ -161,6 +162,8 @@ namespace vgl
           bufferInfo.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
         else if(usageType == UT_UNIFORM || usageType == UT_UNIFORM_DYNAMIC)
           bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+        else if(usageType == UT_SHADER_STORAGE)
+          bufferInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
       };
 
       VkBufferCreateInfo bufferInfo = {};
@@ -178,6 +181,9 @@ namespace vgl
           setFinalBufferUsage(bufferInfo);
         else
           bufferInfo.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        
+        if(readbackEnabled)
+          bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
         if(vkCreateBuffer(device, &bufferInfo, nullptr, &buffers[bufferIndex].stagingBuffer) != VK_SUCCESS)
         {
@@ -221,10 +227,10 @@ namespace vgl
           dedicatedHostAllocationMemoryFlags = (VkMemoryPropertyFlagBits)stagingBufferMemoryFlags;
         }
 
-        alloc = memoryManager->allocate(stagingBufferMemoryFlags, buffers[bufferIndex].stagingBuffer, dedicatedHostAllocationId);
+        alloc = memoryManager->allocateBuffer(stagingBufferMemoryFlags, buffers[bufferIndex].stagingBuffer, dedicatedHostAllocationId);
 
         buffers[bufferIndex].stagingBufferAllocation = alloc;
-        memoryManager->bindMemory(buffers[bufferIndex].stagingBuffer, alloc);
+        memoryManager->bindBufferMemory(buffers[bufferIndex].stagingBuffer, alloc);
         buffers[bufferIndex].stagingBufferHandle = VulkanAsyncResourceHandle::newBuffer(instance->getResourceMonitor(), device, buffers[bufferIndex].stagingBuffer, alloc);          
         buffers[bufferIndex].persistentlyMappedAddress = nullptr;
       }
@@ -233,16 +239,20 @@ namespace vgl
       {
         setFinalBufferUsage(bufferInfo);
         bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+        
+        if(readbackEnabled)
+          bufferInfo.usage |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+        
         if(vkCreateBuffer(device, &bufferInfo, nullptr, &buffers[bufferIndex].buffer) != VK_SUCCESS)
         {
           throw vgl_runtime_error("Failed to create vertex buffer!");
         }
 
-        alloc = memoryManager->allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffers[bufferIndex].buffer);
+        alloc = memoryManager->allocateBuffer(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, buffers[bufferIndex].buffer);
         if(!alloc)
         {
           //must be out of GPU memory, fallback on whatever we can use
-          alloc = memoryManager->allocate(0, buffers[bufferIndex].buffer);
+          alloc = memoryManager->allocateBuffer(0, buffers[bufferIndex].buffer);
           isResident = false;
         }
         else
@@ -251,7 +261,7 @@ namespace vgl
         }
         buffers[bufferIndex].bufferAllocation = alloc;
 
-        memoryManager->bindMemory(buffers[bufferIndex].buffer, alloc);
+        memoryManager->bindBufferMemory(buffers[bufferIndex].buffer, alloc);
         buffers[bufferIndex].bufferHandle = VulkanAsyncResourceHandle::newBuffer(instance->getResourceMonitor(), device, buffers[bufferIndex].buffer, alloc);
       }
 
@@ -292,17 +302,77 @@ namespace vgl
         }
 
         if(stageToDevice)
-          copyToStaging(bufferIndex, transferCommandBuffer);
+          copyFromStaging(bufferIndex, transferCommandBuffer);
       }
+      
+      if(autoReleaseStaging)
+        releaseStagingBuffers();
+    }
+  
+    void VulkanBufferGroup::setAutomaticallyReleaseStagingMemory(bool b)
+    {
+      autoReleaseStaging = b;
     }
 
-    void VulkanBufferGroup::copyDataFrom(VulkanBufferGroup *srcGroup, int srcBufferIndex, int bufferIndex, size_t numBytes,
+    void VulkanBufferGroup::releaseStagingBuffers()
+    {
+      if(!stageToDevice)
+        return;
+      
+      for(int i = 0; i < bufferCount; i++)
+      {
+        if(buffers[i].stagingBuffer)
+        {
+          if(!persistentlyMappedHostMemoryAddress)
+          {
+            if(buffers[i].stagingBufferHandle->release())
+              delete buffers[i].stagingBufferHandle;
+            buffers[i].stagingBuffer = VK_NULL_HANDLE;
+            buffers[i].stagingBufferHandle = nullptr;
+          }
+        }
+      }
+    }
+  
+    void VulkanBufferGroup::setReadbackEnabled(bool enabled)
+    {
+      readbackEnabled = enabled;
+      autoReleaseStaging = false;
+    }
+  
+    void VulkanBufferGroup::readData(int bufferIndex, void *data, size_t numBytes)
+    {
+      if(!readbackEnabled)
+        throw vgl_runtime_error("You cannot call VulkanBufferGroup::readData() if readback has not been explicitly enabled!");
+      
+      if(stageToDevice)
+      {
+        if(!commandPool)
+        {
+          commandPool = instance->getTransferCommandPool();
+          queue = instance->getGraphicsQueue();
+        }
+        copyToStaging(bufferIndex, VK_NULL_HANDLE);
+      }
+      
+      auto memoryManager = instance->getMemoryManager();
+      auto alloc = buffers[bufferIndex].stagingBufferAllocation;
+      auto allocInfo = memoryManager->getAllocationInfo(alloc);
+      void *mappedPtr;
+      if(vkMapMemory(device, allocInfo.memory, allocInfo.offset, buffers[bufferIndex].size, 0, &mappedPtr) != VK_SUCCESS)
+        throw vgl_runtime_error("Unable to map staging buffer in VulkanBufferGroup::data()!");
+      if(numBytes)
+        memcpy(data, mappedPtr, numBytes);
+      vkUnmapMemory(device, allocInfo.memory);
+    }
+
+    void VulkanBufferGroup::copyData(VulkanBufferGroup *srcGroup, int srcBufferIndex, int bufferIndex, size_t numBytes,
       VkCommandBuffer transferCommandBuffer, bool frame)
     {
       data(bufferIndex, nullptr, numBytes, transferCommandBuffer, frame);
 
       if(stageToDevice)
-        copyFrom(srcGroup, srcBufferIndex, bufferIndex, transferCommandBuffer);
+        copyFromBuffer(srcGroup, srcBufferIndex, bufferIndex, transferCommandBuffer);
       else
         throw vgl_runtime_error("Currently, VulkanBufferGroup::copyDataFrom() only works for device local buffers!");
     }
@@ -369,7 +439,7 @@ namespace vgl
       }
     }
 
-    void VulkanBufferGroup::copyToStaging(int bufferIndex, VkCommandBuffer transferCommandBuffer)
+    void VulkanBufferGroup::copyFromStaging(int bufferIndex, VkCommandBuffer transferCommandBuffer)
     {
       auto copyCommandBuffer = transferCommandBuffer;
 
@@ -395,6 +465,8 @@ namespace vgl
       VkBufferCopy copyRegion = {};
       copyRegion.size = buffers[bufferIndex].size;
       vkCmdCopyBuffer(copyCommandBuffer, buffers[bufferIndex].stagingBuffer, buffers[bufferIndex].buffer, 1, &copyRegion);
+      
+      pipelineWriteBarrier(bufferIndex, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, copyCommandBuffer);
 
       if(!transferCommandBuffer)
       {
@@ -427,8 +499,8 @@ namespace vgl
         cmdBufHandle->release();
       }
     }
-
-    void VulkanBufferGroup::copyFrom(VulkanBufferGroup *srcBufferGroup, int srcBufferIndex, int bufferIndex, VkCommandBuffer transferCommandBuffer)
+  
+    void VulkanBufferGroup::copyToStaging(int bufferIndex, VkCommandBuffer transferCommandBuffer)
     {
       auto copyCommandBuffer = transferCommandBuffer;
 
@@ -453,7 +525,83 @@ namespace vgl
 
       VkBufferCopy copyRegion = {};
       copyRegion.size = buffers[bufferIndex].size;
-      vkCmdCopyBuffer(copyCommandBuffer, srcBufferGroup->buffers[srcBufferIndex].stagingBuffer, buffers[bufferIndex].buffer, 1, &copyRegion);
+      vkCmdCopyBuffer(copyCommandBuffer, buffers[bufferIndex].buffer, buffers[bufferIndex].stagingBuffer, 1, &copyRegion);
+      
+      pipelineWriteBarrier(bufferIndex, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_HOST_BIT, copyCommandBuffer);
+
+      if(!transferCommandBuffer)
+      {
+        VkFence transferFence;
+        VkFenceCreateInfo fenceInfo = {};
+        fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+
+        if(vkCreateFence(device, &fenceInfo, nullptr, &transferFence) != VK_SUCCESS)
+          throw vgl_runtime_error("Could not create Vulkan Fence!");
+
+        vkEndCommandBuffer(copyCommandBuffer);
+
+        VkSubmitInfo submitInfo = {};
+        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        submitInfo.commandBufferCount = 1;
+        submitInfo.pCommandBuffers = &copyCommandBuffer;
+
+        vkQueueSubmit(queue, 1, &submitInfo, transferFence);
+
+        //just a note, fences must always be the LAST entry in these collections
+        auto resourceMonitor = instance->getResourceMonitor();
+        auto fenceHandle = VulkanAsyncResourceHandle::newFence(resourceMonitor, device, transferFence);
+        auto cmdBufHandle = VulkanAsyncResourceHandle::newCommandBuffer(resourceMonitor, device, copyCommandBuffer, commandPool);
+        VulkanAsyncResourceCollection transferResources(resourceMonitor, fenceHandle, {
+            buffers[bufferIndex].stagingBufferHandle, buffers[bufferIndex].bufferHandle,
+            cmdBufHandle, fenceHandle
+          });
+        resourceMonitor->append(move(transferResources));
+        fenceHandle->release();
+        cmdBufHandle->release();
+        
+        vkWaitForFences(device, 1, &transferFence, VK_TRUE, numeric_limits<uint64_t>::max());
+      }
+    }
+
+    void VulkanBufferGroup::copyFromBuffer(VulkanBufferGroup *srcBufferGroup, int srcBufferIndex, int bufferIndex, VkCommandBuffer transferCommandBuffer)
+    {
+      auto copyCommandBuffer = transferCommandBuffer;
+
+      if(!transferCommandBuffer)
+      {
+        VkCommandBufferAllocateInfo allocInfo = {};
+        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+        allocInfo.commandPool = commandPool;
+        allocInfo.commandBufferCount = 1;
+
+        VkCommandBuffer commandBuffer;
+        vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+
+        VkCommandBufferBeginInfo beginInfo = {};
+        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+        vkBeginCommandBuffer(commandBuffer, &beginInfo);
+        copyCommandBuffer = commandBuffer;
+      }
+      
+      if(srcBufferGroup->buffers[srcBufferIndex].stagingBuffer)
+      {
+        VkBufferCopy copyRegion = {};
+        copyRegion.size = buffers[bufferIndex].size;
+        vkCmdCopyBuffer(copyCommandBuffer, srcBufferGroup->buffers[srcBufferIndex].stagingBuffer, buffers[bufferIndex].buffer, 1, &copyRegion);
+      }
+      else
+      {
+        srcBufferGroup->pipelineReadBarrier(srcBufferIndex, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, copyCommandBuffer);
+        
+        VkBufferCopy copyRegion = {};
+        copyRegion.size = buffers[bufferIndex].size;
+        vkCmdCopyBuffer(copyCommandBuffer, srcBufferGroup->buffers[srcBufferIndex].buffer, buffers[bufferIndex].buffer, 1, &copyRegion);
+      }
+      
+      pipelineWriteBarrier(bufferIndex, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, copyCommandBuffer);
 
       if(!transferCommandBuffer)
       {
@@ -485,6 +633,67 @@ namespace vgl
         fenceHandle->release();
         cmdBufHandle->release();
       }
+    }
+  
+    void VulkanBufferGroup::pipelineWriteBarrier(int bufferIndex, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkCommandBuffer transferCommandBuffer)
+    {
+      VkBufferMemoryBarrier barrier = {};
+      VkPipelineStageFlags sourceStage = srcStage;
+      VkPipelineStageFlags destinationStage = dstStage;
+
+      barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+      barrier.buffer = buffers[bufferIndex].buffer;
+      barrier.size = VK_WHOLE_SIZE;
+      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      if(srcStage != VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT)
+        barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
+      else
+        barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+      
+      switch(usageType)
+      {
+        case UT_INDEX:
+          barrier.dstAccessMask = VK_ACCESS_INDEX_READ_BIT;
+          destinationStage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+        break;
+        case UT_VERTEX:
+          barrier.dstAccessMask = VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT;
+          destinationStage = VK_PIPELINE_STAGE_VERTEX_INPUT_BIT;
+        break;
+        case UT_UNIFORM:
+        case UT_UNIFORM_DYNAMIC:
+          barrier.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+          destinationStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT;
+        break;
+        case UT_SHADER_STORAGE:
+          barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+          destinationStage = VK_PIPELINE_STAGE_VERTEX_SHADER_BIT | VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
+        break;
+      }
+      
+      if(dstStage == VK_PIPELINE_STAGE_TRANSFER_BIT)
+        barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+      else if(dstStage == VK_PIPELINE_STAGE_HOST_BIT)
+        barrier.dstAccessMask = VK_ACCESS_HOST_READ_BIT;
+      
+      vkCmdPipelineBarrier(transferCommandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+    }
+  
+    void VulkanBufferGroup::pipelineReadBarrier(int bufferIndex, VkPipelineStageFlags srcStage, VkPipelineStageFlags dstStage, VkCommandBuffer transferCommandBuffer)
+    {
+      VkBufferMemoryBarrier barrier = {};
+      VkPipelineStageFlags sourceStage = srcStage;
+      VkPipelineStageFlags destinationStage = dstStage;
+
+      barrier.buffer = buffers[bufferIndex].buffer;
+      barrier.size = VK_WHOLE_SIZE;
+      barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+      barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT | VK_ACCESS_SHADER_WRITE_BIT;
+      barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
+      
+      vkCmdPipelineBarrier(transferCommandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 1, &barrier, 0, nullptr);
     }
   }
 }

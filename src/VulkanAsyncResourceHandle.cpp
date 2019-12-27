@@ -379,7 +379,7 @@ namespace vgl
             handle = nullptr;
           }
         }
-        if(!collection.frame)
+        if(!collection.frame && collection.fence)
         {
           if(collection.fence->release())
           {

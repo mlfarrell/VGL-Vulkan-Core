@@ -91,6 +91,8 @@ namespace vgl
         vkDestroyShaderModule(device, fragmentShader, nullptr);
       if(geometryShader)
         vkDestroyShaderModule(device, geometryShader, nullptr);
+      if(computeShader)
+        vkDestroyShaderModule(device, computeShader, nullptr);
       if(pipelineStateCache)
         delete pipelineStateCache;
       if(dynamicUboStates)
@@ -133,6 +135,7 @@ namespace vgl
         case ST_VERTEX: target = &vertexShader; break;
         case ST_FRAGMENT: target = &fragmentShader; break;
         case ST_GEOMETRY: target = &geometryShader; break;
+        case ST_COMPUTE: target = &computeShader; break;
         default: return false; break;
       }
 
@@ -207,6 +210,8 @@ namespace vgl
               fragmentShaderAsssembly = string(moduleAsm.begin(), moduleAsm.end());
             else if(kind == shaderc_glsl_geometry_shader)
               geometryShaderAssembly = string(moduleAsm.begin(), moduleAsm.end());
+            else if(kind == shaderc_glsl_compute_shader)
+              computeShaderAssembly = string(moduleAsm.begin(), moduleAsm.end());
           }
 #else
           //intentionally not optimizing this step (this spv only used for introspection)
@@ -218,6 +223,8 @@ namespace vgl
             fragmentShaderBin = { reflectionModule.cbegin(), reflectionModule.cend() };
           else if(kind == shaderc_glsl_geometry_shader)
             geometryShaderBin = { reflectionModule.cbegin(), reflectionModule.cend() };
+          else if(kind == shaderc_glsl_compute_shader)
+            computeShaderBin = { reflectionModule.cbegin(), reflectionModule.cend() };
 #endif
         }
 
@@ -230,6 +237,7 @@ namespace vgl
           case ST_VERTEX: return shaderc_glsl_vertex_shader; break;
           case ST_FRAGMENT: return shaderc_glsl_fragment_shader; break;
           case ST_GEOMETRY: return shaderc_glsl_geometry_shader; break;
+          case ST_COMPUTE: return shaderc_glsl_compute_shader; break;
         }
 
         return shaderc_glsl_vertex_shader;

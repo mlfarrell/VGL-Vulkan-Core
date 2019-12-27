@@ -62,12 +62,12 @@ namespace vgl
         uint32_t memoryType;
       };
 
-      Suballocation allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId=Any);
-      Suballocation allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId=Any);
+      Suballocation allocateBuffer(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId=Any);
+      Suballocation allocateImage(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId=Any);
       void free(const Suballocation &suballocation);
 
-      void bindMemory(VkBuffer buffer, Suballocation alloc);
-      void bindMemory(VkImage image, Suballocation alloc);
+      void bindBufferMemory(VkBuffer buffer, Suballocation alloc);
+      void bindImageMemory(VkImage image, Suballocation alloc);
 
       AllocationInfo getAllocationInfo(Suballocation alloc);
 
@@ -180,11 +180,11 @@ namespace vgl
         uint32_t memoryType;
       };
 
-      Suballocation allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId=Any);
-      Suballocation allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId=Any);
+      Suballocation allocateBuffer(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId=Any);
+      Suballocation allocateImage(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId=Any);
 
-      void bindMemory(VkBuffer buffer, Suballocation alloc);
-      void bindMemory(VkImage image, Suballocation alloc);
+      void bindBufferMemory(VkBuffer buffer, Suballocation alloc);
+      void bindImageMemory(VkImage image, Suballocation alloc);
 
       AllocationInfo getAllocationInfo(Suballocation alloc);
 

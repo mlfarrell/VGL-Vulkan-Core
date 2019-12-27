@@ -222,7 +222,7 @@ namespace vgl
         VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, queueFamily, surface->get(), &presentSupport);
 
-        return presentSupport;
+        return presentSupport ? true : false;
       };
 
       auto rateDevice = [=](PhysicalDevice &deviceStruct) -> int {
@@ -326,10 +326,10 @@ namespace vgl
 
         physicalDevice = candidates.rbegin()->second.device;
         graphicsQueueFamily = findQueueFamilies(physicalDevice);
-        setupLogicalDevice();
 
         vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
         vkGetPhysicalDeviceFeatures(physicalDevice, &physicalDeviceFeatures);
+        setupLogicalDevice();
 
         vout << "VGL Vulkan Core On: " << physicalDeviceProperties.deviceName << " (" << physicalDeviceProperties.deviceType << ")" << endl;
         vout << "Vulkan Version: " << VK_VERSION_MAJOR(physicalDeviceProperties.apiVersion) << '.' << VK_VERSION_MINOR(physicalDeviceProperties.apiVersion) << endl;
@@ -375,6 +375,8 @@ namespace vgl
         deviceFeatures.samplerAnisotropy = VK_TRUE;
       if(physicalDeviceFeatures.sampleRateShading)
         deviceFeatures.sampleRateShading = VK_TRUE;
+      if(physicalDeviceFeatures.vertexPipelineStoresAndAtomics)
+        deviceFeatures.vertexPipelineStoresAndAtomics = VK_TRUE;
 #ifndef MACOSX
       if(physicalDeviceFeatures.geometryShader)
         deviceFeatures.geometryShader = VK_TRUE;

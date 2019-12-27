@@ -36,7 +36,7 @@ namespace vgl
     class VulkanShaderProgram : public SequentialIdentifier
     {
     public:
-      enum ShaderType { ST_VERTEX, ST_FRAGMENT, ST_GEOMETRY };
+      enum ShaderType { ST_VERTEX, ST_FRAGMENT, ST_GEOMETRY, ST_COMPUTE };
 
       VulkanShaderProgram();
       VulkanShaderProgram(VkDevice device);
@@ -54,6 +54,7 @@ namespace vgl
       inline VkShaderModule getVertexShader() { return vertexShader; }
       inline VkShaderModule getFragmentShader() { return fragmentShader; }
       inline VkShaderModule getGeometryShader() { return geometryShader; }
+      inline VkShaderModule getComputeShader() { return computeShader; }
 
       inline VkPipelineLayout getPipelineLayout() { return pipelineLayout; }
       inline void setPipelineLayout(VkPipelineLayout layout) { pipelineLayout = layout; }
@@ -124,13 +125,14 @@ namespace vgl
       uint64_t lastDynamicUboFrame = 0;
     protected:
       VkDevice device;
-      VkShaderModule vertexShader = VK_NULL_HANDLE, fragmentShader = VK_NULL_HANDLE, geometryShader = VK_NULL_HANDLE;
+      VkShaderModule vertexShader = VK_NULL_HANDLE, fragmentShader = VK_NULL_HANDLE, geometryShader = VK_NULL_HANDLE,
+                     computeShader = VK_NULL_HANDLE;
       std::string shaderCompilationLogs, shaderLinkLogs;
 
       //These are only utilized if introspectionEnabledGLSL is set to true
       bool introspectionEnabledGLSL = false;
-      std::string vertexShaderAssembly, fragmentShaderAsssembly, geometryShaderAssembly;
-      std::vector<uint32_t> vertexShaderBin, fragmentShaderBin, geometryShaderBin;
+      std::string vertexShaderAssembly, fragmentShaderAsssembly, geometryShaderAssembly, computeShaderAssembly;
+      std::vector<uint32_t> vertexShaderBin, fragmentShaderBin, geometryShaderBin, computeShaderBin;
       std::vector<UniformBufferMemberInfo> currentUniformMemberInfos;
       void *uniformHostBufferPtr = nullptr;
 

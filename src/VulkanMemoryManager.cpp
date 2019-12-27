@@ -69,7 +69,7 @@ namespace vgl
       vmaCreatePool(allocator, &poolCreateInfo, &pools[allocationId-1]);      
     }
 
-    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId)
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocateBuffer(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId)
     {
       VulkanMemoryManager::Suballocation result;
 
@@ -84,7 +84,7 @@ namespace vgl
       return result;
     }
 
-    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId)
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocateImage(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId)
     {
       VulkanMemoryManager::Suballocation result;
 
@@ -130,13 +130,13 @@ namespace vgl
       return { VK_NULL_HANDLE, 0 };
     }
 
-    void VulkanMemoryManager::bindMemory(VkBuffer buffer, VulkanMemoryManager::Suballocation alloc)
+    void VulkanMemoryManager::bindBufferMemory(VkBuffer buffer, VulkanMemoryManager::Suballocation alloc)
     {
       if(alloc)
         vmaBindBufferMemory(allocator, alloc.allocation, buffer);
     }
 
-    void VulkanMemoryManager::bindMemory(VkImage image, VulkanMemoryManager::Suballocation alloc)
+    void VulkanMemoryManager::bindImageMemory(VkImage image, VulkanMemoryManager::Suballocation alloc)
     {
       if(alloc)
         vmaBindImageMemory(allocator, alloc.allocation, image);
@@ -257,7 +257,7 @@ namespace vgl
       delete []allocationsPool;
     }
 
-    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId)
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocateBuffer(VkMemoryPropertyFlags properties, VkBuffer buffer, uint64_t allocationId)
     {
       VkMemoryRequirements memRequirements;
       vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
@@ -265,7 +265,7 @@ namespace vgl
       return allocate(memRequirements.memoryTypeBits, properties, memRequirements.size, memRequirements.alignment, false, allocationId);
     }
 
-    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocate(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId)
+    VulkanMemoryManager::Suballocation VulkanMemoryManager::allocateImage(VkMemoryPropertyFlags properties, VkImage image, uint64_t allocationId)
     {
       VkMemoryRequirements memRequirements;
       vkGetImageMemoryRequirements(device, image, &memRequirements);
@@ -273,13 +273,13 @@ namespace vgl
       return allocate(memRequirements.memoryTypeBits, properties, memRequirements.size, memRequirements.alignment, true, allocationId);
     }
 
-    void VulkanMemoryManager::bindMemory(VkBuffer buffer, VulkanMemoryManager::Suballocation alloc)
+    void VulkanMemoryManager::bindBufferMemory(VkBuffer buffer, VulkanMemoryManager::Suballocation alloc)
     {
       if(alloc)
         vkBindBufferMemory(device, buffer, alloc.memory, alloc.offset);
     }
 
-    void VulkanMemoryManager::bindMemory(VkImage image, VulkanMemoryManager::Suballocation alloc)
+    void VulkanMemoryManager::bindImageMemory(VkImage image, VulkanMemoryManager::Suballocation alloc)
     {
       if(alloc)
         vkBindImageMemory(device, image, alloc.memory, alloc.offset);

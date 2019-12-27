@@ -47,14 +47,20 @@ namespace vgl
       if(vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
         throw vgl_runtime_error("failed to create pipeline layout!");
 
-      create(device, state, renderPass, shader, vertexArray, pipelineLayout, pipelineCache);
+      if(!shader->getComputeShader())
+        create(device, state, renderPass, shader, vertexArray, pipelineLayout, pipelineCache);
+      else
+        createCompute(device, shader, pipelineLayout, pipelineCache);
     }
 
     VulkanPipeline::VulkanPipeline(VkDevice device, const VulkanPipelineState *state, VkRenderPass renderPass, VulkanShaderProgram *shader, 
       VulkanVertexArray *vertexArray, VkPipelineLayout layout, VkPipelineCache pipelineCache)
       : device(device)
     {
-      create(device, state, renderPass, shader, vertexArray, layout, pipelineCache);
+      if(!shader->getComputeShader())
+        create(device, state, renderPass, shader, vertexArray, layout, pipelineCache);
+      else
+        createCompute(device, shader, layout, pipelineCache);
     }
 
     void VulkanPipeline::create(VkDevice device, const VulkanPipelineState *state, VkRenderPass renderPass, VulkanShaderProgram *shader, 
@@ -162,6 +168,27 @@ namespace vgl
 
       if(vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
         throw vgl_runtime_error("Failed to create Vulkan Graphics Pipeline!");
+    }
+  
+    void VulkanPipeline::createCompute(VkDevice device, VulkanShaderProgram *shader, VkPipelineLayout layout, VkPipelineCache pipelineCache)
+    {
+      VkPipelineShaderStageCreateInfo computeShaderStageInfo = {};
+
+      computeShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+      computeShaderStageInfo.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+      computeShaderStageInfo.module = shader->getComputeShader();
+      computeShaderStageInfo.pName = "main";
+
+      VkComputePipelineCreateInfo pipelineInfo = {};
+      pipelineInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+      pipelineInfo.stage = computeShaderStageInfo;
+      pipelineInfo.layout = layout;
+      pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
+      pipelineInfo.basePipelineIndex = -1;
+      pipelineInfo.flags = 0;
+
+      if(vkCreateComputePipelines(device, pipelineCache, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
+        throw vgl_runtime_error("Failed to create Vulkan Compute Pipeline!");
     }
 
     VulkanPipeline::~VulkanPipeline()

@@ -168,7 +168,7 @@ namespace vgl
     {
       bool shouldReinit = false, newImage = false;
 
-      if(stagingBuffer)
+      if(image)
       {
         if(type == TT_CUBE_MAP)
           shouldReinit = (this->width != width || this->height != height || this->format != format || (mipmapEnabled && numMipLevels == 1) || (!mipmapEnabled && numMipLevels != 1));
@@ -185,7 +185,7 @@ namespace vgl
           retainResourcesUntilFrameCompletion(frameId);
         }
 
-        if(stagingBufferHandle->release())
+        if(stagingBufferHandle && stagingBufferHandle->release())
           delete stagingBufferHandle;
         stagingBufferHandle = nullptr;
         stagingBuffer = VK_NULL_HANDLE;
@@ -256,6 +256,9 @@ namespace vgl
 
         copyToImage(layerIndex, level, transferCommandBuffer);
       }
+      
+      if(autoReleaseStaging)
+        releaseStagingBuffers();
     }
 
     void VulkanTexture::initImage(uint32_t width, uint32_t height, uint32_t depth, VkFormat format, uint32_t usage, uint32_t layerIndex, uint32_t numSamples, VkCommandBuffer transferCommandBuffer)
@@ -375,11 +378,11 @@ namespace vgl
 
       VulkanMemoryManager::Suballocation alloc;
 
-      alloc = instance->getMemoryManager()->allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image);
+      alloc = instance->getMemoryManager()->allocateImage(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image);
       if(!alloc)
       {
         //must be out of GPU memory, fallback on whater we can use
-        alloc = instance->getMemoryManager()->allocate(0, image);
+        alloc = instance->getMemoryManager()->allocateImage(0, image);
         isResident = false;
       }
       else
@@ -388,7 +391,7 @@ namespace vgl
       }
       imageAllocation = alloc;
 
-      instance->getMemoryManager()->bindMemory(image, alloc);
+      instance->getMemoryManager()->bindImageMemory(image, alloc);
       
       VkImageLayout layout = (!isDepth) ? VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL : VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
 
@@ -521,6 +524,19 @@ namespace vgl
       }
 
       samplerDirty = true;
+    }
+  
+    void VulkanTexture::setAutomaticallyReleaseStagingMemory(bool b)
+    {
+      autoReleaseStaging = b;
+    }
+  
+    void VulkanTexture::releaseStagingBuffers()
+    {
+      if(stagingBufferHandle && stagingBufferHandle->release())
+        delete stagingBufferHandle;
+      stagingBufferHandle = nullptr;
+      stagingBuffer = VK_NULL_HANDLE;
     }
   
     void VulkanTexture::setWrapMode(WrapMode uMode, WrapMode vMode, WrapMode wMode)
@@ -901,10 +917,10 @@ namespace vgl
         throw vgl_runtime_error("Failed to create vertex buffer!");
       }
 
-      alloc = instance->getMemoryManager()->allocate(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer);
+      alloc = instance->getMemoryManager()->allocateBuffer(VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, stagingBuffer);
       stagingBufferAllocation = alloc;
 
-      instance->getMemoryManager()->bindMemory(stagingBuffer, alloc);
+      instance->getMemoryManager()->bindBufferMemory(stagingBuffer, alloc);
       stagingBufferHandle = VulkanAsyncResourceHandle::newBuffer(instance->getResourceMonitor(), device, stagingBuffer, alloc);
     }
     
@@ -991,12 +1007,12 @@ namespace vgl
       if(vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS)
         throw std::runtime_error("Failed to create Vulkan image!");
 
-      auto alloc = instance->getMemoryManager()->allocate(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image);
+      auto alloc = instance->getMemoryManager()->allocateImage(VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, image);
 
       if(!alloc)
       {
         //must be out of GPU memory, fallback on whatever we can use
-        alloc = instance->getMemoryManager()->allocate(0, image);
+        alloc = instance->getMemoryManager()->allocateImage(0, image);
         isResident = false;
       }
       else
@@ -1005,7 +1021,7 @@ namespace vgl
       }
 
       imageAllocation = alloc;
-      instance->getMemoryManager()->bindMemory(image, alloc);
+      instance->getMemoryManager()->bindImageMemory(image, alloc);
     }
 
     void VulkanTexture::createImageView()
