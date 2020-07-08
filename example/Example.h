@@ -24,9 +24,11 @@ protected:
   float t = 0;
 
   bool done = false, paused = false;
+  bool fullscreen = false, trueFullscreen = false;
 
   void setupVk();
   void reshape();
+  void applyFullscreen();
 
   bool processEvents();
   void update();

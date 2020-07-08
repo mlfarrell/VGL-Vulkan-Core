@@ -59,17 +59,20 @@ namespace vgl
       ///Used to handle window resizing
       void recreateSwapChain();
 
+      ///If you intend to destroy the native window before the instance, you'll need to call this
+      void destroySwapChain();
+
       //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
       //Down the road, if I decide to do multiple threads building command buffers, I'll break these methods into a 
       //"sub instance" type that will live in each thread and provide access to the current building command lists
       inline VkCommandPool getTransferCommandPool() { return transferCommandPool; }
-      inline std::pair<VkCommandBuffer, VkFence> getCurrentTransferCommandBuffer() { return currentTransferCommandBuffer; }
-      std::pair<VkCommandBuffer, VkFence> beginTransferCommands();
-      void endTransferCommands();
+      inline VkCommandBuffer getCurrentTransferCommandBuffer() { return currentTransferCommandBuffer.first; }
+      VkCommandBuffer beginTransferCommands();
+      void endTransferCommands(bool wait=false); //flush
 
       ///Unlike the getCurrentTransferCommandBuffer method, this one will start a new transfer command buffer if needed 
       /// (requiring a call to endTransferCommands() in the future)
-      std::pair<VkCommandBuffer, VkFence> getTransferCommandBuffer();
+      VkCommandBuffer getTransferCommandBuffer();
 
       inline void setCurrentRenderingCommandBuffer(VkCommandBuffer commandBuffer) { currentRenderingCommandBuffer = commandBuffer; }
       VGLINLINE VkCommandBuffer getCurrentRenderingCommandBuffer() { return currentRenderingCommandBuffer; }
@@ -89,7 +92,7 @@ namespace vgl
 
       ///Useful for temporarily getting around bugs in vulkan validation layers (I use breakpoints to debug these)
       static void enableValidationReports(bool b);
-
+      
     protected:
       void *parentRenderer = nullptr;
       VkInstance instance;

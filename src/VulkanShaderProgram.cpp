@@ -20,7 +20,9 @@ limitations under the License.
 #include <sstream>
 #include <regex>
 
+#ifdef VGL_VULKAN_USE_SHADERC
 #include "shaderc/shaderc.hpp"
+#endif
 #include "VulkanInstance.h"
 #include "VulkanShaderProgram.h"
 #include "VulkanBufferGroup.h"
@@ -161,6 +163,8 @@ namespace vgl
       return true;
     }
 
+#ifdef VGL_VULKAN_USE_SHADERC
+
     bool VulkanShaderProgram::addShaderGLSL(ShaderType type, const string &glslSource)
     {
       auto preprocess = [this](const string &source_name, shaderc_shader_kind kind, const string &source) -> string {
@@ -264,6 +268,8 @@ namespace vgl
       //not sure what to do here yet to validate this
       return true;
     }
+
+#endif
 
     void VulkanShaderProgram::setDynamicUBOs(VulkanBufferGroup *ubos, int numImages)
     {

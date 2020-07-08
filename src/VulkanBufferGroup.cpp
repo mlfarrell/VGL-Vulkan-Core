@@ -290,7 +290,7 @@ namespace vgl
             });
           resourceMonitor->append(move(frameResources));
         }
-        else if(instance->getCurrentTransferCommandBuffer().first)
+        else if(instance->getCurrentTransferCommandBuffer())
         {
           //by passing a null fence, we mark these resources as committed to a command buffer that hasn't
           //been submitted yet, and the fence will be provided when the transfer buffer is finally submitted

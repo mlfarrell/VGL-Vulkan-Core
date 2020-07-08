@@ -39,7 +39,7 @@ namespace vgl
       if(!window)
         throw runtime_error("You must call VulkanSwapChain::setWindow() before initializing vulkan swap chain");
 
-	  updateDimensions();
+      updateDimensions();
       createSurface();
     }
 

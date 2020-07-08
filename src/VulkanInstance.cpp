@@ -375,8 +375,8 @@ namespace vgl
         deviceFeatures.samplerAnisotropy = VK_TRUE;
       if(physicalDeviceFeatures.sampleRateShading)
         deviceFeatures.sampleRateShading = VK_TRUE;
-      if(physicalDeviceFeatures.vertexPipelineStoresAndAtomics)
-        deviceFeatures.vertexPipelineStoresAndAtomics = VK_TRUE;
+      //if(physicalDeviceFeatures.vertexPipelineStoresAndAtomics)
+      //  deviceFeatures.vertexPipelineStoresAndAtomics = VK_TRUE;
 #ifndef MACOSX
       if(physicalDeviceFeatures.geometryShader)
         deviceFeatures.geometryShader = VK_TRUE;
@@ -561,10 +561,10 @@ namespace vgl
         vkDestroyInstance(instance, nullptr);
     }
 
-    pair<VkCommandBuffer, VkFence> VulkanInstance::getTransferCommandBuffer()
+    VkCommandBuffer VulkanInstance::getTransferCommandBuffer()
     {
       if(currentTransferCommandBuffer.first)
-        return currentTransferCommandBuffer;
+        return currentTransferCommandBuffer.first;
       else
         return beginTransferCommands();
     }
@@ -577,8 +577,18 @@ namespace vgl
       delete swapChain;
       setupSwapChain();
     }
+  
+    void VulkanInstance::destroySwapChain()
+    {
+      if(swapChain)
+        delete swapChain;
+      if(surface)
+        delete surface;
+      swapChain = nullptr;
+      surface = nullptr;
+    }
 
-    pair<VkCommandBuffer, VkFence> VulkanInstance::beginTransferCommands()
+    VkCommandBuffer VulkanInstance::beginTransferCommands()
     {
 #ifdef DEBUG
       if(currentTransferCommandBuffer.first)
@@ -607,10 +617,10 @@ namespace vgl
         throw vgl_runtime_error("Could not create Vulkan Fence!");
 
       currentTransferCommandBuffer = { commandBuffer, transferFence };
-      return currentTransferCommandBuffer;
+      return currentTransferCommandBuffer.first;
     }
-
-    void VulkanInstance::endTransferCommands()
+  
+    void VulkanInstance::endTransferCommands(bool wait)
     {
       auto transferFence = currentTransferCommandBuffer.second;
 
@@ -629,6 +639,10 @@ namespace vgl
           cmdBufHandle, fenceHandle
         });
       resourceMonitor->append(move(transferResources), true);
+                  
+      if(wait)
+        vkWaitForFences(device, 1, &transferFence, VK_TRUE, numeric_limits<uint64_t>::max());
+      
       fenceHandle->release();
       cmdBufHandle->release();
 

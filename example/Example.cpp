@@ -33,6 +33,10 @@ to use it to build an OpenGL-style graphics engine.
 #include "VulkanTestingMac.h"
 #endif
 
+#ifdef VGL_VULKAN_USE_SHADERC
+#pragma comment(lib, "shaderc_shared.lib")
+#endif
+
 using namespace std;
 using namespace vgl::core;
 using namespace linalg;
@@ -69,13 +73,13 @@ Example::Example()
   SDL_Init(SDL_INIT_VIDEO);
 
   const int w = 1280, h = 720;
-  window = SDL_CreateWindow("VGL Vulkan Core Demo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags[mode]);
+  window = SDL_CreateWindow("VGL Vulkan Core Demo", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, w, h, flags[mode] | SDL_WINDOW_RESIZABLE);
 
   screenW = w;
   screenH = h;
   setupVk();
 
-  //reshape();
+  reshape();
 
   SDL_AddTimer(1000, timerCallback, this);
 }
@@ -114,7 +118,7 @@ static string getSource(const string &path)
   delete[]data;
 
   return ret;
-};
+}
 
 static void checkShaderBuild(bool result)
 {
@@ -149,18 +153,18 @@ void Example::setupVk()
   auto &instance = core::VulkanInstance::currentInstance();
   auto device = instance.getDefaultDevice();
   auto queue = instance.getGraphicsQueue();
-  auto transferCb = instance.getTransferCommandBuffer().first;
+  auto transferCb = instance.getTransferCommandBuffer();
   auto transferPool = instance.getTransferCommandPool();
 
   vkShader1 = make_shared<VulkanShaderProgram>(device);
   vkShader1->setPipelineLayout(renderer->getCommonPLLayout1());
-  checkShaderBuild(vkShader1->addShaderGLSL(VulkanShaderProgram::ST_VERTEX, getSource("glsl/lighting.vert")));
-  checkShaderBuild(vkShader1->addShaderGLSL(VulkanShaderProgram::ST_FRAGMENT, getSource("glsl/lighting.frag")));
+  checkShaderBuild(vkShader1->addShaderSPIRV(VulkanShaderProgram::ST_VERTEX, "glsl/lighting.vert.spv"));
+  checkShaderBuild(vkShader1->addShaderSPIRV(VulkanShaderProgram::ST_FRAGMENT, "glsl/lighting.frag.spv"));
 
   vkShader2 = make_shared<VulkanShaderProgram>(device);
   vkShader2->setPipelineLayout(renderer->getCommonPLLayout1());
-  checkShaderBuild(vkShader2->addShaderGLSL(VulkanShaderProgram::ST_VERTEX, getSource("glsl/lightingTex.vert")));
-  checkShaderBuild(vkShader2->addShaderGLSL(VulkanShaderProgram::ST_FRAGMENT, getSource("glsl/lightingTex.frag")));
+  checkShaderBuild(vkShader2->addShaderSPIRV(VulkanShaderProgram::ST_VERTEX, "glsl/lightingTex.vert.spv"));
+  checkShaderBuild(vkShader2->addShaderSPIRV(VulkanShaderProgram::ST_FRAGMENT, "glsl/lightingTex.frag.spv"));
 
   vkVbo = make_shared<VulkanBufferGroup>(device, (VkCommandPool)VK_NULL_HANDLE, (VkQueue)VK_NULL_HANDLE, 3);
   vkVbo->data(0, modelVerts, sizeof(modelVerts), transferCb);
@@ -200,7 +204,18 @@ void Example::setupVk()
 
 void Example::reshape()
 {
-  //this hasn't been worked on yet (and will probably break)
+  //persistent projection transforms could be updated here
+}
+
+void Example::applyFullscreen()
+{
+  auto fsModeType = (trueFullscreen) ? SDL_WINDOW_FULLSCREEN : SDL_WINDOW_FULLSCREEN_DESKTOP;
+
+  SDL_SetWindowFullscreen(window, (fullscreen) ? fsModeType : 0);
+  SDL_GetWindowSize(window, &screenW, &screenH);
+  SDL_ShowCursor((fullscreen) ? SDL_DISABLE : SDL_ENABLE);
+
+  cout << "Switched to " << screenW << "x" << screenH << endl;
 }
 
 void Example::run()
@@ -234,26 +249,29 @@ bool Example::processEvents()
   {
     switch(event.type)
     {
-      case SDL_WINDOWEVENT_CLOSE:
-      {
-        if(window)
+      case SDL_WINDOWEVENT:
+        switch(event.window.event)
         {
-          SDL_DestroyWindow(window);
-          window = NULL;
+        case SDL_WINDOWEVENT_CLOSE:
+        {
           done = true;
         }
-      }
-      break;
-      case SDL_WINDOWEVENT_MINIMIZED:
-        //these events aren't working for some reason...
-        paused = true;
-      break;
-      case SDL_WINDOWEVENT_RESTORED:
-        paused = false;
-      break;
-      case SDL_MOUSEMOTION:
-        if(event.motion.state)
+        break;
+        case SDL_WINDOWEVENT_RESIZED:
         {
+          int w = event.window.data1, h = event.window.data2;
+          screenW = w;
+          screenH = h;
+
+          reshape();
+        }
+        break;
+        case SDL_WINDOWEVENT_MINIMIZED:
+          paused = true;
+          break;
+        case SDL_WINDOWEVENT_RESTORED:
+          paused = false;
+          break;
         }
       break;
       case SDL_KEYDOWN:
@@ -262,6 +280,14 @@ bool Example::processEvents()
         {
         case SDLK_ESCAPE:
           done = true;
+          break;
+        case SDLK_RETURN:
+          if((SDL_GetModState() & KMOD_LALT) || (SDL_GetModState() & KMOD_RALT))
+          {
+            //trueFullscreen = true;
+            fullscreen = !fullscreen;
+            applyFullscreen();
+          }
           break;
         }
       break;
@@ -286,6 +312,7 @@ void Example::doRender()
 {
   renderer->beginFrame();
 
+  renderer->setViewport(0, 0, screenW, screenH);
   uboData1.view = toMat4(translation_matrix(vec<float, 3>{ 0.0f, 0.0f, -10.0f }));
   uboData1.proj = toMat4(perspective_matrix((float)(M_PI/4.0f), screenW/(float)screenH, 0.1f, 1000.0f, linalg::neg_z, linalg::zero_to_one));
 

@@ -111,7 +111,7 @@ namespace vgl
       {
         createImage();
         for(int i = 0; i < numArrayLayers; i++)
-          copyToImage(i, 0, instance->getTransferCommandBuffer().first);
+          copyToImage(i, 0, instance->getTransferCommandBuffer());
         
         createImageView();
         createSampler();
@@ -1137,7 +1137,7 @@ namespace vgl
       {
         submitOneTimeCommandBuffer(copyCommandBuffer);
       }
-      else if(instance->getCurrentTransferCommandBuffer().first)
+      else if(instance->getCurrentTransferCommandBuffer())
       {
         bool frame = false;
 
@@ -1221,7 +1221,7 @@ namespace vgl
         //submit and wait
         submitOneTimeCommandBuffer(copyCommandBuffer, true);
       }
-      else if(instance->getCurrentTransferCommandBuffer().first)
+      else if(instance->getCurrentTransferCommandBuffer())
       {
         bool frame = false;
 

@@ -18,6 +18,7 @@ limitations under the License.
 #pragma once
 
 #ifndef VGL_VULKAN_CORE_STANDALONE
+#define VGL_VULKAN_USE_SHADERC
 #define VGL_VULKAN_USE_SPIRV_CROSS
 #define VGL_VULKAN_CORE_USE_VMA
 #endif

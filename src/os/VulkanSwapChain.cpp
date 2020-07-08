@@ -137,9 +137,22 @@ namespace vgl
 
       VkResult result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
+      if(result == VK_SUBOPTIMAL_KHR)
+      {
+        //TODO: look into this better when I have the test case
+        result = VK_SUCCESS;
+
+        static bool once = false;
+        if(!once)
+        {
+          verr << "Warning:  Vulkan swapchain present was sub-optimal. This will only be reported once." << endl;
+          once = true;
+        }
+      }
+      
       if(result != VK_SUCCESS)
       {
-        if(result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR)
+        if(result == VK_ERROR_OUT_OF_DATE_KHR)
         {
           return false;
         }
@@ -414,9 +427,9 @@ namespace vgl
       if(depthFormat == VK_FORMAT_UNDEFINED)
       {
         vector<vector<VkFormat>> allFormats({ 
+          { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT },
           { VK_FORMAT_D16_UNORM, VK_FORMAT_D16_UNORM_S8_UINT }, 
           { VK_FORMAT_D24_UNORM_S8_UINT }, 
-          { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT } 
         });
 
         //fallback

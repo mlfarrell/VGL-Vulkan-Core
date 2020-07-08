@@ -48,8 +48,10 @@ namespace vgl
       bool addShaderSPIRV(ShaderType type, const std::string &spirvPath);
       bool addShaderSPIRV(ShaderType type, const uint8_t *spirData, size_t n);
 
+#ifdef VGL_VULKAN_USE_SHADERC
       bool addShaderGLSL(ShaderType type, const std::string &glslSource);
       bool linkShadersGLSL();
+#endif
 
       inline VkShaderModule getVertexShader() { return vertexShader; }
       inline VkShaderModule getFragmentShader() { return fragmentShader; }

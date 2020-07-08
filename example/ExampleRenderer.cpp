@@ -504,7 +504,6 @@ void ExampleRenderer::recreateSwapchainFrameBuffers()
 {
   delete swapchainFramebuffers;
   swapchainFramebuffers = new VulkanFrameBuffer(instance->getSwapChain(), true);
-  swapchainFramebuffers->setShouldInvertViewport(true);
   setRenderTarget(swapchainFramebuffers);
   currentFrameImage = -1;
 }
@@ -551,9 +550,11 @@ void ExampleRenderer::setViewport(int x, int y, int w, int h)
 {
   viewport = { x, y, w, h };
   pipelineState.viewport0.x = x;
-  pipelineState.viewport0.y = y+h;
+  pipelineState.viewport0.y = 0;
   pipelineState.viewport0.width = w;
-  pipelineState.viewport0.height = -h;
+  pipelineState.viewport0.height = h;
+  pipelineState.scissor0.offset = { 0, 0 };
+  pipelineState.scissor0.extent = { (uint32_t)w, (uint32_t)abs(h) };
   psoDirty = true;
 }
   
@@ -765,7 +766,7 @@ void ExampleRenderer::drawInstancedPrimitiveArray(PrimitiveType type, size_t cou
 
 void ExampleRenderer::beginFrame()
 {
-  if(auto transfer = instance->getCurrentTransferCommandBuffer().first)
+  if(auto transfer = instance->getCurrentTransferCommandBuffer())
     endSetup(false);
 
   uint32_t i;
@@ -823,7 +824,7 @@ void ExampleRenderer::endFrame()
 {
   dynamicUbos->flush(currentFrameImage);
 
-  if(auto transfer = instance->getCurrentTransferCommandBuffer().first)
+  if(auto transfer = instance->getCurrentTransferCommandBuffer())
     endSetup(false);
 
   auto commandBuffer = instance->getCurrentRenderingCommandBuffer();
@@ -920,7 +921,7 @@ void ExampleRenderer::beginSetup()
 {
   //setup already started.. we could next these with a stack, but for now we'll flush directly
   //and break
-  if(instance->getCurrentTransferCommandBuffer().first)
+  if(instance->getCurrentTransferCommandBuffer())
     return;
 
   instance->beginTransferCommands();
@@ -928,15 +929,12 @@ void ExampleRenderer::beginSetup()
 
 void ExampleRenderer::endSetup(bool wait)
 {
-  auto transferFence = instance->getCurrentTransferCommandBuffer().second;
-
-  instance->endTransferCommands();
-  if(wait)
-    vkWaitForFences(instance->getDefaultDevice(), 1, &transferFence, VK_TRUE, numeric_limits<uint64_t>::max());
+  //note to future self:  with all the new pipeline barriers, this wait may no longer be necessary
+  instance->endTransferCommands(wait);
 }
 
 VkCommandBuffer ExampleRenderer::getSetupCommandBuffer()
 {
-  return instance->getTransferCommandBuffer().first;
+  return instance->getTransferCommandBuffer();
 }
 
