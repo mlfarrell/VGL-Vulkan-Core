@@ -211,6 +211,11 @@ void ExampleRenderer::updateSet1DS()
   VkWriteDescriptorSet writes[20];
   VkDescriptorImageInfo imageInfo[16];
   int numWrites = 0;
+  
+  //NOTE:  this is a little optimization of mine but it may be dangerous
+  //the spec recommends you write the ENTIRE descriptor set range each time
+  //From my experience, the below practice is usually safe, but when in doubt,
+  //write the whole range.
 
   for(int i = 0; i < maxTextureBinding2D+1; i++)
   {
