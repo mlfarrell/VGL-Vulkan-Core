@@ -41,7 +41,6 @@ file(GLOB vglos "${CMAKE_SOURCE_DIR}/../../src/os/*.cpp")
 
 add_definitions(
   -DVGL_VULKAN_CORE_STANDALONE
-  -DDEBUG
 )
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug")
