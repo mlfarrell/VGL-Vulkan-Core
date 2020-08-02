@@ -19,7 +19,6 @@ limitations under the License.
 #ifndef PREALIGNED16
 #if _MSC_VER && !__INTEL_COMPILER
 #ifdef _WIN64
-#define VGLINLINE __inline
 #define PREALIGNED16 __declspec(align(16))
 #define POSTALIGNED16
 #else
@@ -27,7 +26,6 @@ limitations under the License.
 #define POSTALIGNED16
 #endif
 #else
-#define VGLINLINE __inline__
 #define PREALIGNED16
 #define POSTALIGNED16 __attribute__((aligned(16)))
 #endif

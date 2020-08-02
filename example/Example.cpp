@@ -32,6 +32,9 @@ to use it to build an OpenGL-style graphics engine.
 #include <SDL2/SDL_syswm.h>
 #include "VulkanTestingMac.h"
 #endif
+#ifdef __linux
+#include <SDL_syswm.h>
+#endif
 
 #ifdef VGL_VULKAN_USE_SHADERC
 #pragma comment(lib, "shaderc_shared.lib")
@@ -136,7 +139,7 @@ void Example::setupVk()
   {
     throw runtime_error("All is lost");
   }
-
+  
   VulkanSwapChain::InitParameters swapChainParams = {};
   swapChainParams.mailboxPresentMode = false; //use true for vsync-off (FIFO -> mailbox)
   swapChainParams.depthBits = 24;
@@ -146,6 +149,8 @@ void Example::setupVk()
 #elif defined MACOSX
   addMetalLayer(info.info.cocoa.window);
   VulkanSurface::setWindow(info.info.cocoa.window);
+#elif defined __linux
+  VulkanSurface::setLinuxWindow({ info.info.x11.display, info.info.x11.window });
 #endif
 
   renderer = new ExampleRenderer();
