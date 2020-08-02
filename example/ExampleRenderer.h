@@ -151,7 +151,7 @@ private:
   uint16_t textureBindingBits2D = 0, maxTextureBinding2D = 0;
   VkPipelineLayout commonPLLayout1;
   VkDescriptorSet dynamicUboSets[3];
-  VkDescriptorSet currentSet1DS, templateState1DS;
+  VkDescriptorSet currentSet1DS;
   VkCommandBuffer currentSwapchainCommandBuffer;
   bool renderingOffscreenFramebuffer = false;
 

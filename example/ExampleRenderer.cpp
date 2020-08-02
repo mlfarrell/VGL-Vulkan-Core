@@ -201,9 +201,6 @@ void ExampleRenderer::initCommonLayoutsAndSets()
   {
     dynamicUbos->putDescriptor(i, dynamicUboSets[i], 0, 0, physLimits.maxUniformBufferRange);
   }
-
-  if(!commonDSPoolB->simpleAllocate(1, commonDSLayout1B, &templateState1DS))
-    throw vgl_runtime_error("Failed to allocate common pipeline descriptor sets!");
 }
 
 void ExampleRenderer::updateSet1DS()
@@ -334,7 +331,6 @@ void ExampleRenderer::setTextureBinding2D(VulkanTexture *tex, int binding)
 
   if(tex && !tex->isUndefined())
   {
-    tex->putDescriptor(templateState1DS, binding);
     textureBindingBits2D |= (1<<binding);
     maxTextureBinding2D = max((uint16_t)binding, maxTextureBinding2D);
   }
