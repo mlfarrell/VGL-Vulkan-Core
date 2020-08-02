@@ -21,10 +21,10 @@ limitations under the License.
 #ifdef _WIN64
 #define VGLINLINE __inline
 #define PREALIGNED16 __declspec(align(16))
-#define POSTALIGNED16 
+#define POSTALIGNED16
 #else
-#define PREALIGNED16  //__declspec(align(x))
-#define POSTALIGNED16 
+#define PREALIGNED16
+#define POSTALIGNED16
 #endif
 #else
 #define VGLINLINE __inline__
@@ -33,16 +33,9 @@ limitations under the License.
 #endif
 #endif
 
-#ifdef ANDROID
-//build by default with support only for short indices
-#define UINT3_IS_SHORT 1
-#else
-#define UINT3_IS_SHORT 0
-#endif
-
 #include <iostream>
 
-typedef struct float2
+struct float2
 {
   float x, y;
   
@@ -89,10 +82,10 @@ typedef struct float2
   
   static bool isLeft(float2 a, float2 b, float2 p);
 
-} float2;
+};
 std::ostream &operator <<(std::ostream &ostr, const float2 &v);
 
-typedef struct float3
+struct float3
 {
   float x, y, z;
   
@@ -113,7 +106,7 @@ typedef struct float3
   {
     x = xv;
     y = yv;
-    z = zv;    
+    z = zv;
   }
   
   static const float3 zero, none;
@@ -156,8 +149,7 @@ typedef struct float3
   
   static float3 normalVector(float3 vec[3]);
   static float3 tangentVector(float3 vec[3], float2 tc[3]);
-} float3;
-
+};
 std::ostream &operator <<(std::ostream &ostr, const float3 &v);
 
 PREALIGNED16 struct float4
@@ -221,7 +213,6 @@ PREALIGNED16 struct float4
   
   float &operator[](int index);
 
-  //not exhaustive - just commonly used ones
   inline float2 xz() const { float2 ret = {x, z}; return ret; }
   inline float2 xy() const { float2 ret = {x, y}; return ret; }
   inline float2 yz() const { float2 ret = {y, z}; return ret; }
@@ -236,41 +227,22 @@ PREALIGNED16 struct float4
   
   void transform(const float *matrix4x4);
 } POSTALIGNED16;
-
 std::ostream &operator <<(std::ostream &ostr, const float4 &v);
 
-#ifndef ANDROID
-typedef struct float8
-{
-  union
-  {
-    struct
-    {
-      float x, y, z, w, a, b, c, d;
-    };
-    struct
-    {
-      float4 hi, lo;
-    };
-  };
-  
-} float8;
-#else
-typedef struct float8
+struct float8
 {
   float x, y, z, w, a, b, c, d;
-} float8;
-#endif
+};
 
-typedef struct float16
+struct float16
 {
-	float a1, a2, a3, a4;
-	float b1, b2, b3, b4;
-	float c1, c2, c3, c4;
-	float d1, d2, d3, d4;
-} float16;
+  float a1, a2, a3, a4;
+  float b1, b2, b3, b4;
+  float c1, c2, c3, c4;
+  float d1, d2, d3, d4;
+};
 
-typedef struct ushort3
+struct ushort3
 {
   unsigned short x, y, z;
   
@@ -285,27 +257,72 @@ typedef struct ushort3
     y = yv;
     z = zv;
   }
-} ushort3;
+};
 
-typedef struct int2
+struct int2
 {
   int x, y;
-} int2;
+  
+  int2()
+  {
+    //intentionally not initializing these
+  }
+  
+  int2(int xv, int yv)
+  {
+    x = xv;
+    y = yv;
+  }
+  
+  bool operator ==(const int2 &rhs) const;
+  bool operator !=(const int2 &rhs) const;
+};
+std::ostream &operator <<(std::ostream &ostr, const int2 &v);
 
-typedef struct int3
+struct int3
 {
   int x, y, z;
+  
+  int3()
+  {
+    //intentionally not initializing these
+  }
+  
+  int3(int xv, int yv, int zv)
+  {
+    x = xv;
+    y = yv;
+    z = zv;
+  }
 
   bool operator ==(const int3 &rhs) const;
   bool operator !=(const int3 &rhs) const;
-} int3;
+};
+std::ostream &operator <<(std::ostream &ostr, const int3 &v);
 
-typedef struct int4
+struct int4
 {
   int x, y, z, w;
-} int4;
+  
+  int4()
+  {
+    //intentionally not initializing these
+  }
+  
+  int4(int xv, int yv, int zv, int wv)
+  {
+    x = xv;
+    y = yv;
+    z = zv;
+    w = wv;
+  }
+  
+  bool operator ==(const int4 &rhs) const;
+  bool operator !=(const int4 &rhs) const;
+};
+std::ostream &operator <<(std::ostream &ostr, const int4 &v);
 
-typedef struct uint2
+struct uint2
 {
   unsigned int x, y;
   
@@ -320,18 +337,14 @@ typedef struct uint2
     y = yv;
   }
   
-  bool operator ==(const uint2 &rhs);
-  bool operator !=(const uint2 &rhs);
-  
-} uint2;
+  bool operator ==(const uint2 &rhs) const;
+  bool operator !=(const uint2 &rhs) const;
+};
+std::ostream &operator <<(std::ostream &ostr, const uint2 &v);
 
-typedef struct uint3
+struct uint3
 {
-#if !UINT3_IS_SHORT
   unsigned int x, y, z;
-#else
-  unsigned short x, y, z;
-#endif
   
   uint3()
   {
@@ -345,15 +358,14 @@ typedef struct uint3
     z = zv;
   }
 
-} uint3;
+  bool operator ==(const uint3 &rhs) const;
+  bool operator !=(const uint3 &rhs) const;
+};
+std::ostream &operator <<(std::ostream &ostr, const uint3 &v);
 
-typedef struct uint4
+struct uint4
 {
-#if !UINT3_IS_SHORT
   unsigned int x, y, z, w;
-#else
-  unsigned short x, y, z, w;
-#endif
   
   uint4()
   {
@@ -367,65 +379,13 @@ typedef struct uint4
     z = zv;
     w = wv;
   }
-} uint4;
+  
+  bool operator ==(const uint4 &rhs) const;
+  bool operator !=(const uint4 &rhs) const;
+};
+std::ostream &operator <<(std::ostream &ostr, const uint4 &v);
 
-static inline float4 make_float4(float x, float y, float z, float w)
-{
-  float4 ret = { x, y, z, w };
-  return ret;
-}
-
-static inline float4 make_float4v(float3 v, float w)
-{
-  float4 ret = { v.x, v.y, v.z, w };
-  return ret;
-}
-
-
-static inline float3 make_float3(float x, float y, float z)
-{
-  float3 ret = { x, y, z };
-  return ret;
-}
-
-static inline float2 make_float2(float x, float y)
-{
-  float2 ret = { x, y };
-  return ret;
-}
-
-static inline ushort3 make_ushort3(unsigned short x, unsigned short y, unsigned short z)
-{
-  ushort3 ret = { x, y, z };
-  return ret;
-}
-
-static inline ushort3 make_ushort3_reverse(unsigned short x, unsigned short y, unsigned short z)
-{
-  ushort3 ret = { z, y, x };
-  return ret;
-}
-
-static inline void reverse_ushort3_order(ushort3 *tri)
-{
-  unsigned short tmp = tri->x;
-  tri->x = tri->z;
-  tri->z = tmp;
-}
-
-static inline uint2 make_uint2(unsigned int x, unsigned int y)
-{
-  uint2 ret = { x, y };
-  return ret;
-}
-
-static inline uint3 make_uint3(unsigned int x, unsigned int y, unsigned int z)
-{
-  uint3 ret = { x, y, z };
-  return ret;
-}
-
-static inline uint3 make_uint3_reverse(unsigned int x, unsigned int y, unsigned int z)
+static inline uint3 uint3_reverse(unsigned int x, unsigned int y, unsigned int z)
 {
   uint3 ret = { z, y, x };
   return ret;
@@ -438,20 +398,14 @@ static inline void reverse_uint3_order(uint3 *tri)
   tri->z = tmp;
 }
 
-static inline uint4 make_uint4(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
-{
-  uint4 ret = { x, y, z, w };
-  return ret;
-}
-
 //Generates the quad in the proper order for GL_TRIANGLE_STRIP quad emulation
-static inline uint4 make_uint4_tri_strip(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
+static inline uint4 uint4_tri_strip(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
 {
   uint4 ret = { x, y, w, z };
   return ret;
 }
 
-static inline uint4 make_uint4_reverse(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
+static inline uint4 uint4_reverse(unsigned int x, unsigned int y, unsigned int z, unsigned int w)
 {
   uint4 ret = { w, z, y, x };
   return ret;
@@ -459,27 +413,7 @@ static inline uint4 make_uint4_reverse(unsigned int x, unsigned int y, unsigned 
 
 static inline void reverse_uint4_order(uint4 *quad)
 {
-  uint4 reversed = make_uint4_reverse(quad->x, quad->y, quad->z, quad->w);
+  uint4 reversed = uint4_reverse(quad->x, quad->y, quad->z, quad->w);
   *quad = reversed;
 }
 
-static inline int2 make_int2(int x, int y)
-{
-  int2 ret = { x, y };
-  return ret;
-}
-
-static inline int3 make_int3(int x, int y, int z)
-{
-  int3 ret = { x, y, z };
-  return ret;
-}
-
-static inline int4 make_int4(int x, int y, int z, int w)
-{
-  int4 ret = { x, y, z, w };
-  return ret;
-}
-
-#define FLOAT4_EQUAL(vec1, vec2)   (vec1.x == vec2.x && vec1.y == vec2.y && vec1.z == vec2.z && vec1.w == vec2.w)
-#define FLOAT3_EQUAL(vec1, vec2)   (vec1.x == vec2.x && vec1.y == vec2.y && vec1.z == vec2.z)

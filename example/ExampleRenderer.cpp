@@ -491,14 +491,19 @@ void ExampleRenderer::presentAndSwapBuffers(bool waitForFrame)
   if(!instance->getSwapChain()->presentImage(currentFrameImage))
   {
     //swapchain is out of date
-    instance->recreateSwapChain();
-    recreateSwapchainFrameBuffers();
+    recreateSwapchain();
   }
   previousFrameImage = currentFrameImage;
   currentFrameImage = -1;
 
   if(waitForFrame)
     waitForRender();
+}
+
+void ExampleRenderer::recreateSwapchain()
+{
+  instance->recreateSwapChain();
+  recreateSwapchainFrameBuffers();
 }
 
 void ExampleRenderer::recreateSwapchainFrameBuffers()
@@ -775,8 +780,7 @@ void ExampleRenderer::beginFrame()
   if(!instance->getSwapChain()->acquireNextImage(i))
   {
     //swapchain is out of date
-    instance->recreateSwapChain();
-    recreateSwapchainFrameBuffers();
+    recreateSwapchain();
     assert(instance->getSwapChain()->acquireNextImage(i));
   }
 

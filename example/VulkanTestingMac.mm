@@ -31,7 +31,7 @@
   CAMetalLayer *layer = [self.class.layerClass layer];
   CGSize viewScale = [self convertSizeToBacking: CGSizeMake(1.0, 1.0)];
   layer.contentsScale = MIN(viewScale.width, viewScale.height);
-  //layer.contentsScale = 1.0;
+  layer.contentsScale = 1.0;
   
   return layer;
 }

@@ -214,6 +214,7 @@ void Example::applyFullscreen()
   SDL_SetWindowFullscreen(window, (fullscreen) ? fsModeType : 0);
   SDL_GetWindowSize(window, &screenW, &screenH);
   SDL_ShowCursor((fullscreen) ? SDL_DISABLE : SDL_ENABLE);
+  renderer->recreateSwapchain();
 
   cout << "Switched to " << screenW << "x" << screenH << endl;
 }

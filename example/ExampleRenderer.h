@@ -125,6 +125,9 @@ public:
   virtual void beginSetup();
   virtual void endSetup(bool wait);
   VkCommandBuffer getSetupCommandBuffer();
+  
+  ///You should call this manually when you know the swapchain surface has changed
+  void recreateSwapchain();
 
   inline VkPipelineLayout getCommonPLLayout1() { return commonPLLayout1; }
   inline core::VulkanFrameBuffer *getSwapchainFramebuffers() { return swapchainFramebuffers; }

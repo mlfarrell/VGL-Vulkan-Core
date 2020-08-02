@@ -389,8 +389,8 @@ float3 float3::tangentVector(float3 vec[3], float2 tc[3])
   float3 a = vec[1]-vec[2];
   
   float2 st[2];
-  st[0] = make_float2(tc[1].x-tc[2].x, tc[1].y-tc[2].y);
-  st[1] = make_float2(tc[1].x-tc[0].x, tc[1].y-tc[0].y);
+  st[0] = float2(tc[1].x-tc[2].x, tc[1].y-tc[2].y);
+  st[1] = float2(tc[1].x-tc[0].x, tc[1].y-tc[0].y);
   
   float coef = 1.0f / (st[0].x * st[1].y - st[1].x * st[0].y);
   float3 tangent;
@@ -515,7 +515,7 @@ float float2::length() const
 }
 
 float float2::lengthSquared() const
-{  
+{
   return dot(*this);
 }
 
@@ -539,12 +539,64 @@ std::ostream &operator <<(std::ostream &ostr, const float2 &v)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool uint2::operator ==(const uint2 &rhs)
+std::ostream &operator <<(std::ostream &ostr, const int2 &v)
 {
-  return (x==rhs.x && y==rhs.y);
+  ostr << "(" << v.x << ", " << v.y << ")";
+  
+  return ostr;
 }
 
-bool uint2::operator !=(const uint2 &rhs)
+std::ostream &operator <<(std::ostream &ostr, const uint2 &v)
+{
+  ostr << "(" << v.x << ", " << v.y << ")";
+  
+  return ostr;
+}
+
+std::ostream &operator <<(std::ostream &ostr, const int3 &v)
+{
+  ostr << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+
+  return ostr;
+}
+
+std::ostream &operator <<(std::ostream &ostr, const uint3 &v)
+{
+  ostr << "(" << v.x << ", " << v.y << ", " << v.z << ")";
+
+  return ostr;
+}
+
+std::ostream &operator <<(std::ostream &ostr, const int4 &v)
+{
+  ostr << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
+  
+  return ostr;
+}
+
+std::ostream &operator <<(std::ostream &ostr, const uint4 &v)
+{
+  ostr << "(" << v.x << ", " << v.y << ", " << v.z << ", " << v.w << ")";
+  
+  return ostr;
+}
+
+bool int4::operator ==(const int4 &rhs) const
+{
+  return (x==rhs.x && y==rhs.y && z==rhs.z && w==rhs.w);
+}
+
+bool int4::operator !=(const int4 &rhs) const
+{
+  return !(*this == rhs);
+}
+
+bool uint4::operator ==(const uint4 &rhs) const
+{
+  return (x==rhs.x && y==rhs.y && z==rhs.z && w==rhs.w);
+}
+
+bool uint4::operator !=(const uint4 &rhs) const
 {
   return !(*this == rhs);
 }
@@ -558,5 +610,36 @@ bool int3::operator !=(const int3 &rhs) const
 {
   return !(*this == rhs);
 }
+
+bool uint3::operator ==(const uint3 &rhs) const
+{
+  return (x==rhs.x && y==rhs.y && z==rhs.z);
+}
+
+bool uint3::operator !=(const uint3 &rhs) const
+{
+  return !(*this == rhs);
+}
+
+bool int2::operator ==(const int2 &rhs) const
+{
+  return (x==rhs.x && y==rhs.y);
+}
+
+bool int2::operator !=(const int2 &rhs) const
+{
+  return !(*this == rhs);
+}
+
+bool uint2::operator ==(const uint2 &rhs) const
+{
+  return (x==rhs.x && y==rhs.y);
+}
+
+bool uint2::operator !=(const uint2 &rhs) const
+{
+  return !(*this == rhs);
+}
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////////
