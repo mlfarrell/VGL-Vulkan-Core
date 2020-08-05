@@ -92,7 +92,7 @@ static const int globalFileLocalConstant = 0;  //camel-case sometimes used in fi
 
 ## Enums
 
-Do you even enum, bro?  Enums are type-names, so their name is capitalized.  All enum values are abbreviations of their type, followed by the value itself.  i.e.
+Enums are type-names, so their name is capitalized.  All enum values are abbreviations of their type, followed by the value itself.  i.e.
 
 ```
 enum InsaneTextureType
