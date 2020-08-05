@@ -15,14 +15,15 @@ To get an idea of how this core can be used to replace an OpenGL 3.x engine, see
 
 ## Features
 
-- First-class `VulkanSwapChain` class with implementations for windows & mac (moltenVk) surfaces
+- High-level `VulkanSwapChain` class with implementation for triple-buffering, mailbox presentation modes, etc.
+- `VulkanSurface` construction from native window handle implementations for windows, mac & linux.
 - Built-in thread-safe memory manager & heap manager using tier-based allocation capable of providing suballocations to various resources (such as buffers, images, etc).  
-- Online GLSL compilation via shaderc built in to first-class `VulkanShaderProgram` object.
-- Simple SPV shader introspection to determine information about sampled image and uniform buffer members in built shader programs.
+- Online GLSL compilation via shaderc built in to high-level `VulkanShaderProgram` object.
+- Simple SPIR-V shader reflection to determine information about common shader resources such as sampled image and uniform buffer members in built shader programs.
 - Support for per-shader dynamic UBO data updating via simple `VulkanShaderProgram::updateDynamicUboState` interface.
-- Grouped Buffer objects via first-class `VulkanBufferGroup` class.
-- Vertex array state management via first-class `VulkanVertexArray` class.
-- First-class Texture class `VulkanTexture` supporting texture initialization from image bytes (data) or uninitialized for use as a render target.
+- Grouped Buffer objects via high-level `VulkanBufferGroup` class.
+- High-level Vertex array state management via `VulkanVertexArray` class.
+- High-level Texture class `VulkanTexture` supporting texture initialization from image bytes (data) or uninitialized for use as a render target.
 - Fast cache-based pipeline creation by mapping POD pipeline state structs to `VulkanPipeline` objects.
 - Async reference-based resource wrapper `VulkanAsyncResourceHandle` faciliated by dedicated resource monitor (create-use-release-and-forget.  Resource monitor checks fences to determine when resources are no longer needed, and then destroys underlying vulkan resources only when safe).  
 - Example context-like `ExampleRenderer` class which demonstrates dynamic pipeline creation, on-the-fly command buffer building, and managing renderer state.
@@ -34,7 +35,9 @@ At the time of this release, the vesions I'm using are SDL2 2.0.9, stb_image 2.1
 
 Optionally, if you want to use fast (and not terrible) shader reflection, you'll want to have SPIRV-cross and enable the VGL_VULKAN_USE_SPIRV_CROSS preprocessor flag.
 
-Inside LunarG contains shaderc, which must be built as a shared DLL on windows.  Because that is a giant pain in the ass, I've included the interface lib and DLL for shaderc in this project.
+The memory manager implementation is compatible with latest VulkanMemoryAllocator (as of 2.3.0) and can be enabled via VGL_VULKAN_CORE_USE_VMA.
+
+Online compilation from glsl requires linking against shaderc and enabling the VGL_VULKAN_USE_SHADERC flag.
 
 ## How to build example program
 
@@ -43,12 +46,20 @@ An example program that shows basic core usage is contained within the example f
 
 ### Windows
 
-Once you have all your dependencies, place all the headers from (vulkansdk/include/vulkan, shaderc, linearalg, and SDL2) into example/include and the corresponding libs inside example/lib
+Once you have all your dependencies, place all the headers from (vulkansdk/include/vulkan, optional shaderc, stb_image, linearalg, and SDL2) into example/include and the corresponding libs inside example/lib
 Then, open the Visual Studio 2017 solution and build the project.
+
+### Linux
+
+Ensure you have SDL2 development libraries installed on your system.
+Next, checkout & place all the single-header-file libraries from (stb_image, linearalg) into example/include
+Then, cd into the example/linux directory and run 
+
+`CMake -DVULKANSDK=/path/to/vulkansdk . && make` to build the project.
 
 ### Mac
 
-Once you have all your dependencies, place all the headers from (vulkansdk/include/vulkan, shaderc, linearalg, and SDL2) into example/include and the following frameworks/libs inside example/mac
+Once you have all your dependencies, place all the headers from (vulkansdk/include/vulkan, optional shaderc, linearalg, stb_image, and SDL2) into example/include and the following frameworks/libs inside example/mac
 
 - MoltenVK.framework
 - SDL2.framework
