@@ -21,3 +21,4 @@ example/mac/Example.xcodeproj/xcuserdata
 example/mac/MoltenVK.framework
 example/mac/SDL2.framework
 example/linux/build/*
+build
