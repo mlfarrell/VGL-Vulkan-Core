@@ -16,39 +16,41 @@ limitations under the License.
 
 #pragma once
 
-PREALIGNED16 union _mat4
+namespace vgl
 {
-  struct
+  PREALIGNED16 union _mat4
   {
-    float m00, m01, m02, m03;
-    float m10, m11, m12, m13;
-    float m20, m21, m22, m23;
-    float m30, m31, m32, m33;
-  };
-  float m[16];
-} POSTALIGNED16;
-typedef union _mat4 mat4;
-
-union _mat3
-{
-  struct
+    struct
+    {
+      float m00, m01, m02, m03;
+      float m10, m11, m12, m13;
+      float m20, m21, m22, m23;
+      float m30, m31, m32, m33;
+    };
+    float m[16];
+  } POSTALIGNED16;
+  typedef union _mat4 mat4;
+  
+  union _mat3
   {
-    float m00, m01, m02;
-    float m10, m11, m12;
-    float m20, m21, m22;
+    struct
+    {
+      float m00, m01, m02;
+      float m10, m11, m12;
+      float m20, m21, m22;
+    };
+    float m[9];
   };
-  float m[9];
-};
-typedef union _mat3 mat3;
-
-union _mat2
-{
-  struct
+  typedef union _mat3 mat3;
+  
+  union _mat2
   {
-    float m00, m01;
-    float m10, m11;
+    struct
+    {
+      float m00, m01;
+      float m10, m11;
+    };
+    float m[4];
   };
-  float m[4];
-};
-typedef union _mat2 mat2;
-
+  typedef union _mat2 mat2;
+}
