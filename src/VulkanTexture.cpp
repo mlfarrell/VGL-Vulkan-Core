@@ -417,24 +417,29 @@ namespace vgl
     void VulkanTexture::readImageData(uint32_t x, uint32_t y, uint32_t readWidth, uint32_t readHeight, uint32_t layer, uint32_t level, void *data)
     {
       //TODO: use blitting in here to speed this up!
-
-      if(!stagingBufferHandle)
-      {
-        //TODO: make this "4" determined by image format
-        size = width*height*4;
-        createStagingBuffer(true);
-      }
-
+      VkDeviceSize bytesPerPixel = 0;
       VkDeviceSize linearCopySize = 0;
+      
       switch(format)
       {
         case VK_FORMAT_R8G8B8A8_UNORM:
         case VK_FORMAT_B8G8R8A8_UNORM:
           linearCopySize = readWidth*readHeight*4;
+          bytesPerPixel = 4;
+        break;
+        case VK_FORMAT_R8_UNORM:
+          linearCopySize = readWidth*readHeight;
+          bytesPerPixel = 1;
         break;
         default:
           throw vgl_runtime_error("Unsupported image format for VulkanTexture::readImageData()");
         break;
+      }
+
+      if(!stagingBufferHandle)
+      {
+        size = width*height*bytesPerPixel;
+        createStagingBuffer(true);
       }
 
       copyFromImage(x, y, readWidth, readHeight, layer, level, VK_NULL_HANDLE, true);
