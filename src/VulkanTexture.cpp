@@ -899,6 +899,7 @@ namespace vgl
       {
         vkWaitForFences(device, 1, &transferFence, VK_TRUE, std::numeric_limits<uint64_t>::max());
         vkDestroyFence(device, transferFence, nullptr);
+        vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
       }
     }
 
