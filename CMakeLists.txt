@@ -26,6 +26,8 @@ include_directories(
 )
 
 if(DEFINED VMA_PATH)
+  message(STATUS "Using VMA for memory management...")
+
   include_directories(
     ${VMA_PATH}
   )  
