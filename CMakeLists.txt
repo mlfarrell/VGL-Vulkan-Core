@@ -19,7 +19,6 @@ else()
   set(surface_LIBRARIES "")
 endif()
 
-
 include_directories(
   ${surface_INCLUDE_DIRS}
   ${SDL2_INCLUDE_DIRS}  
@@ -42,7 +41,6 @@ endif()
 
 include_directories(
 	"${VULKANSDK}/${VULKANSDK_ARCH}/include/vulkan"
-	"${CMAKE_SOURCE_DIR}/example/mac/Example/src/" # TODO move this header
 	"${CMAKE_SOURCE_DIR}/src/"
 	"${CMAKE_SOURCE_DIR}/src/os"
 )
@@ -51,12 +49,19 @@ if(APPLE)
   include_directories(
     "${CMAKE_SOURCE_DIR}/src/os/mac" 
     "${VULKANSDK}/MoltenVK/include/vulkan"
-  )  
+  	"${CMAKE_SOURCE_DIR}/example/mac/Example/src" # TODO move this header  
+  )
+
   set(vglsurface "${CMAKE_SOURCE_DIR}/src/os/mac/VulkanSurface.mm")  
   add_definitions(-DMACOSX)
 elseif(UNIX)
+  include_directories(
+    "${CMAKE_SOURCE_DIR}/src/os/linux" 
+    "${CMAKE_SOURCE_DIR}/example/linux"
+  )
   include_directories("${CMAKE_SOURCE_DIR}/src/os/linux")
-  set(vglsurface "${CMAKE_SOURCE_DIR}/src/os/linux/VulkanSurface.cpp")  
+
+  set(vglsurface "${CMAKE_SOURCE_DIR}/src/os/linux/VulkanSurface.cpp")
 elseif(MSVC)
   #todo
 endif()
