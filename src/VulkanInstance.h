@@ -34,7 +34,12 @@ namespace vgl
     class VulkanInstance
     {
     public:
-      VulkanInstance();
+      struct VulkanConfig
+      {
+        bool headless;
+      };
+      
+      VulkanInstance(VulkanConfig config={});
       ~VulkanInstance();
 
       VulkanInstance(const VulkanInstance &rhs) = delete;
@@ -111,8 +116,9 @@ namespace vgl
       VulkanSwapChain *swapChain = nullptr;
       VulkanMemoryManager *memoryManager = nullptr;
       VulkanAsyncResourceMonitor *resourceMonitor = nullptr;
-
+      
       int graphicsQueueFamily = -1;
+      VulkanConfig launchConfig;
 
       void getRequiredInstanceExtensions();
       void getRequiredDeviceExtensions();

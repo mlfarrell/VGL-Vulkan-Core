@@ -52,7 +52,7 @@ namespace vgl
       return *currentVulkanInstance;
     }
 
-    VulkanInstance::VulkanInstance()
+    VulkanInstance::VulkanInstance(VulkanConfig config) : launchConfig(config)
     {
 #if (defined DEBUG || defined FORCE_VALIDATION) && (!defined MACOSX) && (!defined TARGET_OS_IPHONE) //validation doesn't work on apple yet
       validationEnabled = true;
@@ -159,28 +159,28 @@ namespace vgl
       currentVulkanInstance = this;
 
       getRequiredDeviceExtensions();
-      setupSurface();
+      if(!launchConfig.headless)
+        setupSurface();
       setupDefaultDevice();
     }
 
     void VulkanInstance::getRequiredInstanceExtensions()
     {
-      requiredInstanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
+      if(!launchConfig.headless)
+      {
+        requiredInstanceExtensions.push_back(VK_KHR_SURFACE_EXTENSION_NAME);
 #ifdef WIN32
-      requiredInstanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
+        requiredInstanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif defined MACOSX
-      requiredInstanceExtensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
-#elif defined __linux
-      requiredInstanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
-#ifdef VGL_VULKAN_CORE_USE_XCB
-      requiredInstanceExtensions.push_back(VK_KHR_XCB_SURFACE_EXTENSION_NAME);      
+        requiredInstanceExtensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
 #endif
-#endif
+      }
     }
 
     void VulkanInstance::getRequiredDeviceExtensions()
     {
-      requiredDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+      if(!launchConfig.headless)
+        requiredDeviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
       requiredDeviceExtensions.push_back(VK_KHR_MAINTENANCE1_EXTENSION_NAME);
       //requiredDeviceExtensions.push_back(VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME);
         
@@ -224,6 +224,9 @@ namespace vgl
       };
 
       auto deviceSupportsSwapchainPresent = [=](VkPhysicalDevice device, int queueFamily) -> bool {
+        if(launchConfig.headless)
+          return false;
+        
         VkBool32 presentSupport = false;
         vkGetPhysicalDeviceSurfaceSupportKHR(device, queueFamily, surface->get(), &presentSupport);
 
@@ -253,7 +256,7 @@ namespace vgl
         int graphicsFamily = findQueueFamilies(device);
         if(graphicsFamily < 0)
           score = 0;
-        if(!deviceSupportsSwapchainPresent(device, graphicsFamily))
+        if(!deviceSupportsSwapchainPresent(device, graphicsFamily) && !launchConfig.headless)
           score = 0;
 
         uint32_t extensionCount;
@@ -357,7 +360,8 @@ namespace vgl
         //create main pipeline cache
         setupPipelineCache();
 
-        setupSwapChain();
+        if(!launchConfig.headless)
+          setupSwapChain();
       }
       else
       {
