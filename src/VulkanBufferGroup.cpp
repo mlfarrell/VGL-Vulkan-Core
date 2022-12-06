@@ -233,6 +233,9 @@ namespace vgl
         memoryManager->bindBufferMemory(buffers[bufferIndex].stagingBuffer, alloc);
         buffers[bufferIndex].stagingBufferHandle = VulkanAsyncResourceHandle::newBuffer(instance->getResourceMonitor(), device, buffers[bufferIndex].stagingBuffer, alloc);          
         buffers[bufferIndex].persistentlyMappedAddress = nullptr;
+        
+        if(!alloc)
+          throw vgl_runtime_error("Failed to allocate vulkan buffer!");
       }
 
       if(stageToDevice && !buffers[bufferIndex].buffer)
@@ -254,6 +257,9 @@ namespace vgl
           //must be out of GPU memory, fallback on whatever we can use
           alloc = memoryManager->allocateBuffer(0, buffers[bufferIndex].buffer);
           isResident = false;
+          
+          if(!alloc)
+            throw vgl_runtime_error("Failed to allocate vulkan buffer!");
         }
         else
         {

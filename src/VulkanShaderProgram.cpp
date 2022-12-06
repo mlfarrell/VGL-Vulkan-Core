@@ -1223,7 +1223,6 @@ namespace vgl
               match = findLeftHandExpression(" = OpTypePointer UniformConstant " + match.first);
               if(!match.first.empty())
               {
-                //what a monumental-sized pain in my fucking ass
                 bool foundVar = false;
                 size_t varSearchPos = 0;
                 do
