@@ -39,7 +39,7 @@ namespace vgl
         bool headless;
       };
       
-      VulkanInstance(VulkanConfig config={});
+      VulkanInstance(VulkanConfig config={ false });
       ~VulkanInstance();
 
       VulkanInstance(const VulkanInstance &rhs) = delete;

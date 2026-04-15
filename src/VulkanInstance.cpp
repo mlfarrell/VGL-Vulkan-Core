@@ -173,6 +173,8 @@ namespace vgl
         requiredInstanceExtensions.push_back(VK_KHR_WIN32_SURFACE_EXTENSION_NAME);
 #elif defined MACOSX
         requiredInstanceExtensions.push_back(VK_MVK_MACOS_SURFACE_EXTENSION_NAME);
+#else
+        requiredInstanceExtensions.push_back(VK_KHR_XLIB_SURFACE_EXTENSION_NAME);
 #endif
       }
     }

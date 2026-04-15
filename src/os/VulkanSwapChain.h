@@ -68,8 +68,10 @@ namespace vgl
 
       [[deprecated]] uint32_t acquireNextImage();
     protected:
+      static const int MAX_IMAGES = 3;
       static const int MAX_FRAMES_IN_FLIGHT = 2;
       int currentFrame = 0, lastSubmittedFrame = -1;
+      int currentImageIndex = -1;
 
       static InitParameters initParams;
 
@@ -79,8 +81,8 @@ namespace vgl
       VkQueue graphicsQueue, presentQueue;
       VkDevice swapchainDevice;
 
-      VkSemaphore imageAvailableSemaphores[MAX_FRAMES_IN_FLIGHT];
-      VkSemaphore renderFinishedSemaphores[MAX_FRAMES_IN_FLIGHT];
+      VkSemaphore imageAvailableSemaphores[MAX_IMAGES];
+      VkSemaphore renderFinishedSemaphores[MAX_IMAGES];
       VkFence frameFences[MAX_FRAMES_IN_FLIGHT];
       uint64_t frameIds[MAX_FRAMES_IN_FLIGHT];
 
