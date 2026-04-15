@@ -15,6 +15,7 @@ limitations under the License.
 ***************************************************************************/
 
 #include "pch.h"
+#include <cassert>
 #include "VulkanSwapChain.h"
 #include "VulkanInstance.h"
 #include "VulkanFrameBuffer.h"
@@ -51,13 +52,17 @@ namespace vgl
 
     void VulkanSwapChain::cleanup()
     {
-      for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+      for(int i = 0; i < MAX_IMAGES; i++)
       {
         vkDestroySemaphore(instance->getDefaultDevice(), renderFinishedSemaphores[i], nullptr);
         vkDestroySemaphore(instance->getDefaultDevice(), imageAvailableSemaphores[i], nullptr);
-        vkDestroyFence(instance->getDefaultDevice(), frameFences[i], nullptr);
       }
+
+      for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+        vkDestroyFence(instance->getDefaultDevice(), frameFences[i], nullptr);
+
       vkDestroySwapchainKHR(instance->getDefaultDevice(), swapChain, nullptr);
+
       if(depthAttachment)
         delete depthAttachment;
       if(msaaColorTarget)
@@ -92,6 +97,7 @@ namespace vgl
         return false;
       }
 
+      currentImageIndex = imageIndex;
       return true;
     }
 
@@ -107,7 +113,7 @@ namespace vgl
       submitInfo.commandBufferCount = 1;
       submitInfo.pCommandBuffers = &commandBuffer;
       submitInfo.signalSemaphoreCount = (waitOnImageAcquire) ? 1 : 0;
-      submitInfo.pSignalSemaphores = &renderFinishedSemaphores[currentFrame];
+      submitInfo.pSignalSemaphores = &renderFinishedSemaphores[currentImageIndex];
 
       if(vkQueueSubmit(graphicsQueue, 1, &submitInfo, frameFences[currentFrame]) != VK_SUCCESS)
         throw vgl_runtime_error("Failed to submit vulkan command buffer!");
@@ -127,7 +133,7 @@ namespace vgl
       VkPresentInfoKHR presentInfo = {};
       presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
       presentInfo.waitSemaphoreCount = 1;
-      presentInfo.pWaitSemaphores = &renderFinishedSemaphores[currentFrame];
+      presentInfo.pWaitSemaphores = &renderFinishedSemaphores[imageIndex];
 
       VkSwapchainKHR swapChains[] = { swapChain };
       presentInfo.swapchainCount = 1;
@@ -317,7 +323,7 @@ namespace vgl
       VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
       //use 2 to maximize latency (below aims for triple buffering)
-      uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+      uint32_t imageCount = std::min(swapChainSupport.capabilities.minImageCount + 1, 3u);
       if(swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) 
       {
         imageCount = swapChainSupport.capabilities.maxImageCount;
@@ -326,6 +332,8 @@ namespace vgl
       {
         imageCount = swapChainSupport.capabilities.minImageCount;
       }
+
+      assert(imageCount < MAX_IMAGES);
 
       VkSwapchainCreateInfoKHR createInfo = {};
       createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
@@ -481,13 +489,20 @@ namespace vgl
       VkFenceCreateInfo fenceInfo = {};
       fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
 
-      for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+      for(int i = 0; i < MAX_IMAGES; i++)
       {
         if(vkCreateSemaphore(swapchainDevice, &semaphoreInfo, nullptr, &imageAvailableSemaphores[i]) != VK_SUCCESS ||
-           vkCreateSemaphore(swapchainDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS ||
-           vkCreateFence(swapchainDevice, &fenceInfo, nullptr, &frameFences[i]) != VK_SUCCESS)
+           vkCreateSemaphore(swapchainDevice, &semaphoreInfo, nullptr, &renderFinishedSemaphores[i]) != VK_SUCCESS)
         {
           throw vgl_runtime_error("Failed to create Vulkan swapchain semaphores!");
+        }
+      }
+
+      for(int i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+      {
+        if(vkCreateFence(swapchainDevice, &fenceInfo, nullptr, &frameFences[i]) != VK_SUCCESS)
+        {
+          throw vgl_runtime_error("Failed to create Vulkan swapchain fences!");
         }
         frameIds[i] = 0;
       }
